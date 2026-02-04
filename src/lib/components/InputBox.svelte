@@ -3,48 +3,87 @@
 
   let { database } = $props();
 
-  let value: string = $state("");
+  let player: string = $state("");
+  let comment: string = $state("");
 
-  // TODO: okey, this should be a util function or something, same goes for the reads in other components.
+  let error: boolean = $state(false)
+
+  // TODO: this should be a util function or something, same goes for the reads in other components.
   async function handleWriteFine() {
-    if (value === "") return;
+    if (player === "" || comment === ""){
+      error = true;
+      return;
+    }
 
     await addDoc(collection(database, "prikk_melding"), {
-      explanation: value,
+      explanation: player + ": " + comment,
       date: new Date()
     });
 
-    value = "";
+    player = "";
+    comment = "";
+    error = false;
   }
 </script>
 
-<div class="container">
-  <textarea name="textarea" id="textarea" bind:value></textarea>
-  <br />
-  <button onclick={handleWriteFine}>meld</button>
+<div class="add_fine">
+  <div class="component">
+    <label for="player">Spiller <span class="asterisk">*</span></label>
+    <input id="player" type="text" bind:value={player}>
+  </div>
+  <div class="component">
+    <label for="comment">Kommentar <span class="asterisk">*</span></label>
+    <input id="comment" type="text" bind:value={comment}>
+  </div>
+  <button onclick={handleWriteFine}>Send inn</button>
 </div>
+{#if error}
+  <p>
+    Mangler felt
+  </p>
+{/if}
 
 <style>
-  .container {
-    display: block;
-    text-align: center;
-  }
-
-  textarea {
-    resize: none;
-    width: 15rem;
-    height: 5rem;
-    margin-top: 2rem;
-  }
-
   button {
-    margin-top: 1rem;
-    border-radius: 5px;
-    font-size: 20px;
-    color: black;
-    padding: 8px;
-    background-color: white;
-    border-style: solid;
-    border-color: black;
+    background-color: #006A3A;
+    height: 43px;
+    border-radius: 8px;
+    padding: 10px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    font-style: semi-bold;
+    color: #FFFFFF;
+  }
+
+  p {
+    color: #FF4D4DD6;
+    bottom: 0;
+  }
+
+  .add_fine{
+    display: flex;
+    flex-direction: column;
+    gap: 34px;
+    font-size: 14px;
+    font-style: medium;
+    font-weight: 500;
+  }
+
+  .component {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  input {
+    border-radius: 8px;
+    border-width: 1px;
+    padding: 14px;
+  }
+  
+  .asterisk {
+    color: #FF4D4DD6;
   }
 </style>

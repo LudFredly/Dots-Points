@@ -42,6 +42,7 @@
       return b.date.getTime() - a.date.getTime();
     });
 
+    console.log("Retrieved fines from db")
     return fine_list;
   }
 
@@ -60,9 +61,6 @@
   });
 </script>
 
-<h2>Meldte bøter</h2>
-
-
 {#each pagedHistory() as entry}
   <li>
     <strong>{formatDate(entry.date)}</strong> – {entry.explanation}
@@ -76,13 +74,7 @@
   <button onclick={nextPage} disabled={currentPage === totalPages()}>→</button>
 </div>
 
-<!-- TODO: make pagination for this -->
 <style>
-  h2 {
-    text-align: center;
-    margin-top: 4rem;
-  }
-
   li {
     text-align: center;
     margin-top: 2rem;
