@@ -3,6 +3,20 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			// Ensure window.fetch has a setter so SvelteKit client runtime can wrap fetch without throwing
+			try {
+				var _origFetch = window.fetch;
+				Object.defineProperty(window, 'fetch', {
+					get: function() { return _origFetch; },
+					set: function(fn) { _origFetch = fn; },
+					configurable: true,
+					enumerable: true
+				});
+			} catch (e) {
+				console.warn('Fetch setter polyfill warning:', e);
+			}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

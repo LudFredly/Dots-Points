@@ -26,24 +26,29 @@
   }
 
   async function getFines() {
-    const db_collection = collection(database, "prikk_melding");
-    const db_snapshot = await getDocs(db_collection);
-    const fine_list: { date: Date; explanation: string }[] = db_snapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        date: data.date?.toDate ? data.date.toDate() : data.date ? new Date(data.date) : null,
-        explanation: data.explanation ?? data.forklaring
-      }
-    });
+    try {
+      const db_collection = collection(database, "prikk_melding");
+      const db_snapshot = await getDocs(db_collection);
+      const fine_list: { date: Date; explanation: string }[] = db_snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          date: data.date?.toDate ? data.date.toDate() : data.date ? new Date(data.date) : null,
+          explanation: data.explanation ?? data.forklaring
+        }
+      });
 
-    fine_list.sort((a, b) => {
-      if (!a.date) return 1;
-      if (!b.date) return -1;
-      return b.date.getTime() - a.date.getTime();
-    });
+      fine_list.sort((a, b) => {
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return b.date.getTime() - a.date.getTime();
+      });
 
-    console.log("Retrieved fines from db")
-    return fine_list;
+      console.log("Retrieved fines from db")
+      return fine_list;
+    } catch (err) {
+      console.warn("Firestore not connected or error fetching fines:", err);
+      return [];
+    }
   }
 
   function formatDate(date?: Date | null): string {

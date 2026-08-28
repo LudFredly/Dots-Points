@@ -1,187 +1,221 @@
 <script lang="ts">
-  import DialogBox from "$lib/components/DialogBox.svelte";
-  import FineHistory from "$lib/components/FineHistory.svelte";
-  import InputBox from "$lib/components/InputBox.svelte";
-  import Leaderboard from "$lib/components/Leaderboard.svelte";
-  import { database } from "$lib/utils/firestore";
   import { onMount } from "svelte";
-  import { type Firestore, collection, getDocs, query, orderBy } from "firebase/firestore/lite";
+  import { h4aStore } from "$lib/utils/store";
+  import type { Person, FineRule, FineReport, DugnadEntry, DugnadActivity, TeamSettings } from "$lib/types";
+  import Navbar from "$lib/components/Navbar.svelte";
+  import FineSubmitForm from "$lib/components/FineSubmitForm.svelte";
+  import DugnadSubmitForm from "$lib/components/DugnadSubmitForm.svelte";
+  import LeaderboardView from "$lib/components/LeaderboardView.svelte";
+  import ActivityHistory from "$lib/components/ActivityHistory.svelte";
+  import AdminDashboard from "$lib/components/AdminDashboard.svelte";
+  import RulesModal from "$lib/components/RulesModal.svelte";
+  import { ShieldAlert, HeartHandshake, Trophy, History, Lock } from "lucide-svelte";
 
-  type Rule = {
-    description: string;
-    fine: number;
-  };
-  let regler: Array<Rule> = $state([]);
+  let persons = $state<Person[]>([]);
+  let rules = $state<FineRule[]>([]);
+  let fines = $state<FineReport[]>([]);
+  let dugnad = $state<DugnadEntry[]>([]);
+  let dugnadActivities = $state<DugnadActivity[]>([]);
+  let settings = $state<TeamSettings>(h4aStore.settings);
+  let activeTab = $state<"fine-form" | "dugnad-form" | "leaderboard" | "history" | "admin">("fine-form");
+  let isRulesModalOpen = $state(false);
 
-  let showDialog: boolean = $state(false);
-  function toggleShowDialog() {
-    showDialog = !showDialog;
-  };
-
-  let leaderboard: boolean = $state(true);
-  function toggleLeaderboard(value: boolean){
-    leaderboard = value;
+  function syncState() {
+    persons = [...h4aStore.persons];
+    rules = [...h4aStore.rules];
+    fines = [...h4aStore.fines];
+    dugnad = [...h4aStore.dugnad];
+    dugnadActivities = [...h4aStore.dugnadActivities];
+    settings = { ...h4aStore.settings };
   }
 
-  async function getRules(db: Firestore) {
-    const reglerCol = collection(db, "fine_rules");
-
-    const reglerQuery = query(reglerCol, orderBy("sort_order", "asc"));
-
-    const reglerSnapshot = await getDocs(reglerQuery);
-
-    const reglerList: Array<Rule> = reglerSnapshot.docs.map((doc) => {
-      let data = doc.data();
-      return {
-        description: data.rule,
-        fine: data.fine,
-      };
+  onMount(() => {
+    syncState();
+    const unsubscribe = h4aStore.subscribe(() => {
+      syncState();
     });
-    console.log("Retrieved rules from db")
-    return reglerList;
-  }
-
-  onMount(async () => {
-    regler = await getRules(database);
+    return () => unsubscribe();
   });
+
+  const pendingCount = $derived(
+    fines.filter(f => f.status === "pending").length + dugnad.filter(d => d.status === "pending").length
+  );
 </script>
 
-<div class="topper">
-  <p class="h3c">H3C</p>
-  <h1>Botsystem</h1>
-  <button onclick={toggleShowDialog} class="open-rules">?</button>
-</div>
-
-<hr>
-
-<img src="img/cover.png" alt="cool stuff" />
-
-<h2>Legg inn ny bot <span class="plus">+</span></h2>
-
-
-<InputBox {database} />
-
-<div class="menu">
-  <div class="element" class:active={leaderboard} onclick={() => toggleLeaderboard(true)}>
-    <p class="menu_text">Leaderboard</p>
-  </div>
-  <div class="element" class:active={!leaderboard} onclick={() => toggleLeaderboard(false)}>
-    <p class="menu_text">Siste bøter</p>
-  </div>
-  <div
-    class="active-indicator"
-    style="transform: translateX({leaderboard ? '0%' : '110px'})"
+<div class="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 selection:bg-emerald-500 selection:text-white">
+  <!-- Navbar with Fine Pot status, Hours, Rules, and Admin button in upper right corner -->
+  <Navbar
+    {fines}
+    {dugnad}
+    {persons}
+    {settings}
+    {pendingCount}
+    {activeTab}
+    onSelectTab={(tab: "fine-form" | "dugnad-form" | "leaderboard" | "history" | "admin") => activeTab = tab}
+    onOpenRules={() => isRulesModalOpen = true}
   />
+
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
+    <!-- Primary Navigation Tabs -->
+    <div class="bg-white p-1.5 rounded-2xl shadow-xs border border-slate-200 flex items-center gap-1 overflow-x-auto">
+      <button
+        type="button"
+        onclick={() => activeTab = "fine-form"}
+        class="flex-1 min-w-[130px] py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer {activeTab === 'fine-form' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}"
+      >
+        <ShieldAlert class="w-4 h-4 text-emerald-400" />
+        <span>Report Fine</span>
+      </button>
+
+      <button
+        type="button"
+        onclick={() => activeTab = "dugnad-form"}
+        class="flex-1 min-w-[130px] py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer {activeTab === 'dugnad-form' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}"
+      >
+        <HeartHandshake class="w-4 h-4 text-teal-400" />
+        <span>Log Club Duty</span>
+      </button>
+
+      <button
+        type="button"
+        onclick={() => activeTab = "leaderboard"}
+        class="flex-1 min-w-[130px] py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer {activeTab === 'leaderboard' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}"
+      >
+        <Trophy class="w-4 h-4 text-amber-400" />
+        <span>Standings</span>
+        {#if !settings.finePotPublished}
+          <Lock class="w-3 h-3 text-amber-400" />
+        {/if}
+      </button>
+
+      <button
+        type="button"
+        onclick={() => activeTab = "history"}
+        class="flex-1 min-w-[120px] py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer {activeTab === 'history' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}"
+      >
+        <History class="w-4 h-4 text-sky-400" />
+        <span>Activity Log</span>
+      </button>
+    </div>
+
+    <!-- Active View Display -->
+    {#if activeTab === "fine-form"}
+      <div class="space-y-6">
+        <FineSubmitForm
+          {persons}
+          {rules}
+          onSubmitFine={async (report: Omit<FineReport, "id" | "date" | "status">) => {
+            await h4aStore.addFineReport(report);
+          }}
+        />
+        <ActivityHistory {fines} {dugnad} {persons} />
+      </div>
+    {:else if activeTab === "dugnad-form"}
+      <div class="space-y-6">
+        <DugnadSubmitForm
+          {persons}
+          activities={dugnadActivities}
+          onSubmitDugnad={async (entry: Omit<DugnadEntry, "id" | "date" | "status">) => {
+            await h4aStore.addDugnadEntry(entry);
+          }}
+        />
+        <ActivityHistory {fines} {dugnad} {persons} />
+      </div>
+    {:else if activeTab === "leaderboard"}
+      <LeaderboardView
+        {persons}
+        {fines}
+        {dugnad}
+        {settings}
+      />
+    {:else if activeTab === "history"}
+      <ActivityHistory {fines} {dugnad} {persons} />
+    {:else if activeTab === "admin"}
+      <AdminDashboard
+        {persons}
+        {rules}
+        {fines}
+        {dugnad}
+        {dugnadActivities}
+        {settings}
+        onApproveFine={async (id: string) => {
+          await h4aStore.setFineStatus(id, "approved");
+        }}
+        onRejectFine={async (id: string) => {
+          await h4aStore.deleteFine(id);
+        }}
+        onUpdateFine={async (id: string, updates: Partial<FineReport>) => {
+          await h4aStore.updateFine(id, updates);
+        }}
+        onApproveDugnad={async (id: string) => {
+          await h4aStore.setDugnadStatus(id, "approved");
+        }}
+        onRejectDugnad={async (id: string) => {
+          await h4aStore.deleteDugnad(id);
+        }}
+        onUpdateDugnad={async (id: string, updates: Partial<DugnadEntry>) => {
+          await h4aStore.updateDugnad(id, updates);
+        }}
+        onAddPerson={(firstName: string, lastName: string, role: string, type: "player" | "coach", number?: number) => {
+          h4aStore.addPerson(firstName, lastName, role, type, number);
+        }}
+        onUpdatePerson={(id: string, updates: Partial<Person>) => {
+          h4aStore.updatePerson(id, updates);
+        }}
+        onRemovePerson={(id: string) => {
+          h4aStore.removePerson(id);
+        }}
+        onAdjustPersonTotals={(personId: string, fineSum?: number, dutyHours?: number) => {
+          h4aStore.setPersonTotals(personId, fineSum, dutyHours);
+        }}
+        onAddFineRule={(rule: Omit<FineRule, "id">) => {
+          h4aStore.addFineRule(rule);
+        }}
+        onUpdateFineRule={(id: string, updates: Partial<FineRule>) => {
+          h4aStore.updateFineRule(id, updates);
+        }}
+        onDeleteFineRule={(id: string) => {
+          h4aStore.deleteFineRule(id);
+        }}
+        onAddDugnadActivity={(activity) => {
+          h4aStore.addDugnadActivity(activity);
+        }}
+        onUpdateDugnadActivity={(id, updates) => {
+          h4aStore.updateDugnadActivity(id, updates);
+        }}
+        onDeleteDugnadActivity={(id) => {
+          h4aStore.deleteDugnadActivity(id);
+        }}
+        onUpdateSettings={(newSettings: Partial<TeamSettings>) => {
+          h4aStore.updateSettings(newSettings);
+        }}
+        onResetData={() => {
+          h4aStore.resetToDefaultData();
+        }}
+        onExitAdmin={() => {
+          activeTab = "fine-form";
+        }}
+      />
+    {/if}
+  </main>
+
+  <!-- Rules Catalog Modal -->
+  {#if isRulesModalOpen}
+    <RulesModal
+      {rules}
+      onClose={() => isRulesModalOpen = false}
+    />
+  {/if}
+
+  <!-- Clean Minimal Footer with dynamic Team Name & Season -->
+  <footer class="mt-auto py-6 border-t border-slate-200 bg-white text-center text-xs text-slate-500">
+    <div class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div class="font-bold text-slate-700">
+        {settings?.teamName || 'H4A'} {settings?.season || '26/27'}
+      </div>
+      <div class="text-slate-400">
+        Team Fines & Club Duty Management Portal
+      </div>
+    </div>
+  </footer>
 </div>
-
-{#if leaderboard}
-<Leaderboard {database}/>
-{:else}
-<FineHistory {database} />
-{/if}
-
-<!-- Keep at end to have as overlay -->
-{#if showDialog}
-  <DialogBox {toggleShowDialog} {regler} />
-{/if}
-
-<style>
-  .active-indicator {
-    position: absolute;
-    top: 5px;
-    left: 5px;
-    width: 100px;
-
-    height: 40px;
-    background: #006A3A;
-    border-radius: 8px;
-    z-index: -1;
-
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-
-  .menu {
-    position: relative;
-    display: flex;
-    flex-direction: row;
-
-    width: 220px;
-    height: 50px;
-    border-radius: 14px;
-    gap: 10px;
-    border: solid;
-    border-width: 0.5px;
-    margin-right: auto;
-    margin-left: auto;
-    margin-top: 50px;  
-  }
-
-  .element {
-    flex: 1;
-  }
-
-  .menu_text {
-    text-align: center;
-    transition: color 0.25s ease;
-  }
-
-  .element.active .menu_text {
-  color: white;
-}
-
-  .topper {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 7px;
-  }
-
-  .h3c {
-    font-weight: 400;
-    font-size: 16px;
-  }
-
-  h1 {
-    color: #006A3A;
-    font-size: 21px;
-    font-weight: 700;
-    font-style: bold;
-  }
-
-  h2 { 
-    font-size: 23px;
-    font-weight: 700;
-    font-style: bold;
-    color: #414141;
-  }
-
-  .plus {
-    font-size: 35px;
-    font-weight: 100;
-    font-style: italic;
-  }
-
-  .open-rules {
-    border-radius: 50%;
-    height: 1.5rem;
-    width: 1.5rem;
-    background-color: transparent;
-    font-size: 16px;
-  }
-
-  .open-rules:hover {
-    background-color: rgb(241, 241, 241);
-  }
-
-  hr {
-    opacity: .5;
-  }
-
-  img {
-    width: 70vw;
-    border-radius: 5px;
-    display: block;
-    margin: auto;
-  }
-</style>

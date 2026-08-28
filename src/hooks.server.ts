@@ -1,11 +1,14 @@
 import type { Handle } from "@sveltejs/kit";
-import { ACCESS_KEY } from "$env/static/private";
+import { env } from "$env/dynamic/private";
 
 export const handle: Handle = async ({ event, resolve }) => {
-  const key = event.url.searchParams.get("key");
+  const accessKey = env.ACCESS_KEY;
 
-  if (key !== ACCESS_KEY || key === undefined) {
-    return new Response("Unauthorized", { status: 401 });
+  if (accessKey) {
+    const key = event.url.searchParams.get("key");
+    if (key !== accessKey) {
+      return new Response("Unauthorized", { status: 401 });
+    }
   }
 
   return resolve(event);

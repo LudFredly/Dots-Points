@@ -7,23 +7,28 @@
     let leaderboard: {name: string, fines_total: number}[] = $state([]);
 
     async function getLeaderboard() {
-        const db_collection = collection(database, "prikk_approved");
-        const db_snapshot = await getDocs(db_collection);
+        try {
+            const db_collection = collection(database, "prikk_approved");
+            const db_snapshot = await getDocs(db_collection);
 
-        const player_list = db_snapshot.docs.map((doc) => {
-            const data = doc.data();
+            const player_list = db_snapshot.docs.map((doc) => {
+                const data = doc.data();
 
-            const finesArray = Array.isArray(data.fines_nok) ? data.fines_nok : [];
+                const finesArray = Array.isArray(data.fines_nok) ? data.fines_nok : [];
 
-            return {
-                name: data.name || "Unknown",
-                fines_total: finesArray.reduce((sum: number, fine: number) => sum + (Number(fine) || 0), 0),
-            };
-        });
+                return {
+                    name: data.name || "Unknown",
+                    fines_total: finesArray.reduce((sum: number, fine: number) => sum + (Number(fine) || 0), 0),
+                };
+            });
 
-        player_list.sort((a, b) => b.fines_total - a.fines_total);
+            player_list.sort((a, b) => b.fines_total - a.fines_total);
 
-        return player_list;
+            return player_list;
+        } catch (err) {
+            console.warn("Firestore not connected or error fetching leaderboard:", err);
+            return [];
+        }
     }
 
     onMount(async () => {

@@ -15,10 +15,14 @@
       return;
     }
 
-    await addDoc(collection(database, "prikk_melding"), {
-      explanation: player + ": " + comment,
-      date: new Date()
-    });
+    try {
+      await addDoc(collection(database, "prikk_melding"), {
+        explanation: player + ": " + comment,
+        date: new Date()
+      });
+    } catch (err) {
+      console.warn("Firestore not connected or error writing fine:", err);
+    }
 
     player = "";
     comment = "";

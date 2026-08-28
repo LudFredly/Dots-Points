@@ -1,0 +1,7 @@
+{
+  "name": "H4A 26/27 - Fines & Volunteer Portal",
+  "description": "Official portal for H4A 26/27 to submit penalty fines with multi-select, log volunteer hours & points, track leaderboards, and manage team approvals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
