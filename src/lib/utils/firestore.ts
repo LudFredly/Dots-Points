@@ -17,8 +17,19 @@ export const isFirebaseConfigured = Boolean(
   !firebaseConfig.apiKey.includes("Dummy")
 );
 
-// Initialize Firebase App safely
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Initialize Firebase App safely with fallback placeholders to prevent unhandled SDK exceptions when unconfigured
+const safeConfig = isFirebaseConfigured
+  ? firebaseConfig
+  : {
+      apiKey: "AIzaSyDummyKeyForInitializationOnly12345",
+      authDomain: "h4a-volleyball.firebaseapp.com",
+      projectId: "h4a-volleyball-demo",
+      storageBucket: "h4a-volleyball.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:1234567890abcdef"
+    };
+
+const app = getApps().length === 0 ? initializeApp(safeConfig) : getApp();
 
 export const database = getFirestore(app);
 export const auth = getAuth(app);

@@ -217,7 +217,10 @@ export class H4ADataManager {
 
   init() {
     if (!this.isConfigured) {
-      this.connectionError = "Firebase configuration is missing or incomplete. Please supply Firebase credentials in environment variables.";
+      this.connectionError = "Firebase credentials not detected. The portal is displaying preview data. Add your Firebase keys to environment variables to enable live cloud synchronization.";
+      this.persons = [...DEFAULT_PERSONS];
+      this.rules = this.sortRulesByFine([...DEFAULT_FINE_RULES]);
+      this.dugnadActivities = [...DEFAULT_DUGNAD_ACTIVITIES];
       this.isLoading = false;
       this.notify();
       return;
