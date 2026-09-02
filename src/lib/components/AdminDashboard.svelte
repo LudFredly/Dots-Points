@@ -82,28 +82,46 @@
     onExitAdmin?: () => void;
   } = $props();
 
-  // Admin Authentication State - Requires password each time admin is opened
-  let isAuthenticated = $state(false);
+  // Admin Authentication State via Firebase Auth
+  let isAuthenticated = $derived(h4aStore.isAdminAuthenticated);
+  let adminEmailInput = $state("");
   let adminPasswordInput = $state("");
   let authError = $state("");
+  let isLoggingIn = $state(false);
   let showPassword = $state(false);
 
-  function handleAdminLogin(e: SubmitEvent) {
+  async function handleAdminLogin(e: SubmitEvent) {
     e.preventDefault();
     authError = "";
-    if (adminPasswordInput.trim() === "H4AOnTop") {
-      isAuthenticated = true;
+    isLoggingIn = true;
+    try {
+      await h4aStore.loginAdmin(adminEmailInput, adminPasswordInput);
       adminPasswordInput = "";
       notify("Admin console unlocked successfully.");
-    } else {
-      authError = "Incorrect admin password. Please try again.";
+    } catch (err: any) {
+      console.error("Admin sign-in error:", err);
+      if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
+        authError = "Invalid admin email or password.";
+      } else if (err.code === "auth/invalid-email") {
+        authError = "Please enter a valid email address.";
+      } else {
+        authError = err.message || "Failed to sign in as admin.";
+      }
+    } finally {
+      isLoggingIn = false;
     }
   }
 
-  function handleExitAdmin() {
-    isAuthenticated = false;
-    adminPasswordInput = "";
-    onExitAdmin?.();
+  async function handleExitAdmin() {
+    try {
+      await h4aStore.logoutAdmin();
+      adminPasswordInput = "";
+      notify("Signed out of Admin Console.");
+      onExitAdmin?.();
+    } catch (err: any) {
+      console.error("Sign out error:", err);
+      onExitAdmin?.();
+    }
   }
 
   let adminTab = $state<"pending" | "roster" | "rules" | "dugnad_rates" | "records" | "settings">("pending");
@@ -467,7 +485,7 @@
   {/if}
 
   {#if !isAuthenticated}
-    <!-- Password Locked View -->
+    <!-- Firebase Auth Login View -->
     <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 sm:p-8 max-w-md mx-auto text-center space-y-5">
       <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center shadow-inner">
         <Lock class="w-7 h-7" />
@@ -478,12 +496,18 @@
           Admin Portal Access
         </h2>
         <p class="text-xs sm:text-sm text-slate-500 mt-1">
-          Enter the team master password to manage fines, roster, rules, and approvals for {settings?.teamName || 'H4A'} {settings?.season || '26/27'}.
+          Sign in with your Firebase administrator account to manage fines, roster, rules, and approvals for {settings?.teamName || 'H4A'} {settings?.season || '26/27'}.
         </p>
       </div>
 
+      {#if !h4aStore.isConfigured}
+        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-medium text-left">
+          <strong>Configuration Notice:</strong> Firebase credentials are missing in environment variables. Add them to enable cloud sync and authentication.
+        </div>
+      {/if}
+
       {#if authError}
-        <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold flex items-center gap-2">
+        <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold flex items-center gap-2 text-left">
           <AlertCircle class="w-4 h-4 shrink-0 text-rose-600" />
           <span>{authError}</span>
         </div>
@@ -491,14 +515,28 @@
 
       <form onsubmit={handleAdminLogin} class="space-y-4 text-left">
         <div>
+          <label for="admin-email" class="block text-xs font-bold text-slate-700 mb-1">
+            Admin Email
+          </label>
+          <input
+            id="admin-email"
+            type="email"
+            placeholder="admin@team.com"
+            bind:value={adminEmailInput}
+            required
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-300 rounded-xl text-slate-900 text-sm"
+          />
+        </div>
+
+        <div>
           <label for="admin-pass" class="block text-xs font-bold text-slate-700 mb-1">
-            Master Password
+            Password
           </label>
           <div class="relative">
             <input
               id="admin-pass"
               type={showPassword ? "text" : "password"}
-              placeholder="Enter password..."
+              placeholder="••••••••••••"
               bind:value={adminPasswordInput}
               required
               class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-300 rounded-xl text-slate-900 font-mono text-sm"
@@ -513,27 +551,37 @@
           </div>
         </div>
 
-        <div class="space-y-2">
+        <div class="space-y-2 pt-1">
           <button
             type="submit"
-            class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-emerald-400 font-black rounded-xl text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+            disabled={isLoggingIn || !h4aStore.isConfigured}
+            class="w-full py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-emerald-400 font-black rounded-xl text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
           >
-            <Lock class="w-4 h-4" />
-            <span>Unlock Admin Console</span>
+            {#if isLoggingIn}
+              <RefreshCw class="w-4 h-4 animate-spin text-emerald-400" />
+              <span>Authenticating...</span>
+            {:else}
+              <Lock class="w-4 h-4" />
+              <span>Sign In as Admin</span>
+            {/if}
           </button>
 
           {#if onExitAdmin}
             <button
               type="button"
-              onclick={handleExitAdmin}
+              onclick={onExitAdmin}
               class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
             >
               <LogOut class="w-3.5 h-3.5" />
-              <span>Cancel & Return to Main Site</span>
+              <span>Return to Main Site</span>
             </button>
           {/if}
         </div>
       </form>
+
+      <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-400 text-center">
+        Secured with Firebase Authentication & Zero-Trust Cloud Rules
+      </div>
     </div>
   {:else}
     <!-- Authenticated Admin Header Banner -->
@@ -542,12 +590,17 @@
         <div class="flex items-center gap-2">
           <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
           <span class="text-xs uppercase font-extrabold tracking-wider text-emerald-400">
-            {settings?.teamName || 'H4A'} {settings?.season || '26/27'} Admin Console (Unlocked)
+            {settings?.teamName || 'H4A'} {settings?.season || '26/27'} Admin Console (Authenticated)
           </span>
         </div>
         <h2 class="text-lg sm:text-xl font-bold text-white mt-1">
           Team Management & Approval Headquarters
         </h2>
+        {#if h4aStore.currentUser?.email}
+          <div class="text-xs text-slate-400 mt-0.5">
+            Signed in as <span class="text-slate-200 font-medium">{h4aStore.currentUser.email}</span>
+          </div>
+        {/if}
       </div>
 
       <div class="flex items-center gap-2 flex-wrap">
@@ -570,15 +623,15 @@
           </button>
         </div>
 
-        <!-- Exit Admin Button -->
+        <!-- Exit / Sign Out Admin Button -->
         <button
           type="button"
           onclick={handleExitAdmin}
           class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-300 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-          title="Exit admin mode and return to main site"
+          title="Sign out of admin mode and return to main site"
         >
           <LogOut class="w-3.5 h-3.5" />
-          <span>Exit Admin</span>
+          <span>Sign Out</span>
         </button>
       </div>
     </div>

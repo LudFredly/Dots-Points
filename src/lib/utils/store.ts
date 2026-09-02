@@ -1,7 +1,23 @@
 import type { Person, FineRule, FineReport, DugnadEntry, DugnadActivity, TeamSettings } from "$lib/types";
-import { sortPersonsAlphabetically, getPublicDisplayName } from "$lib/utils/nameHelper";
-import { database } from "$lib/utils/firestore";
-import { collection, getDocs, addDoc, doc, updateDoc } from "firebase/firestore/lite";
+import { sortPersonsAlphabetically } from "$lib/utils/nameHelper";
+import { database, auth, isFirebaseConfigured, handleFirestoreError, OperationType } from "$lib/utils/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  writeBatch,
+  getDocs
+} from "firebase/firestore";
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  type User
+} from "firebase/auth";
 
 export const DEFAULT_PERSONS: Person[] = [
   { id: "p1", firstName: "Henrik", lastName: "Karlsen", number: 4, role: "Setter (Captain)", type: "player", active: true },
@@ -20,7 +36,6 @@ export const DEFAULT_PERSONS: Person[] = [
   { id: "c2", firstName: "Tor", lastName: "Amundsen", number: undefined, role: "Assistant Coach", type: "coach", active: true }
 ];
 
-// Fine rules sorted strictly by fine amount (sum) ascending
 export const DEFAULT_FINE_RULES: FineRule[] = [
   {
     id: "r1",
@@ -143,11 +158,10 @@ export const DEFAULT_DUGNAD_ACTIVITIES: DugnadActivity[] = [
 export const DEFAULT_SETTINGS: TeamSettings = {
   teamName: "H4A",
   season: "26/27",
-  finePotPublished: false, // Hidden until admin publishes
+  finePotPublished: false,
   hourlyPointsRate: 10
 };
 
-// Check if a rule applies to a specific occasion
 export function isRuleApplicableForOccasion(rule: FineRule, occasion: string): boolean {
   if (occasion === "Match") {
     return rule.fineMatch != null && Number(rule.fineMatch) > 0;
@@ -164,7 +178,6 @@ export function isRuleApplicableForOccasion(rule: FineRule, occasion: string): b
   return false;
 }
 
-// Helper to calculate fine based on context/occasion
 export function getRuleFineForOccasion(rule: FineRule, occasion: string): number {
   if (occasion === "Match" && rule.fineMatch != null && Number(rule.fineMatch) > 0) {
     return Number(rule.fineMatch);
@@ -179,40 +192,6 @@ export function getRuleFineForOccasion(rule: FineRule, occasion: string): number
   return rates.length > 0 ? rates[0] : (rule.fine || 0);
 }
 
-export const INITIAL_FINES: FineReport[] = [];
-
-export const INITIAL_DUGNAD: DugnadEntry[] = [];
-
-const STORAGE_KEYS = {
-  PERSONS: "h4a_persons_v3",
-  RULES: "h4a_fine_rules_v3",
-  FINES: "h4a_fines_reports_v3",
-  DUGNAD: "h4a_dugnad_entries_v3",
-  DUGNAD_ACTIVITIES: "h4a_dugnad_activities_v3",
-  SETTINGS: "h4a_settings_v3"
-};
-
-export function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
-  if (typeof window === "undefined") return defaultValue;
-  try {
-    const item = localStorage.getItem(key);
-    if (!item) return defaultValue;
-    return JSON.parse(item) as T;
-  } catch (err) {
-    console.warn(`Error reading localStorage key ${key}:`, err);
-    return defaultValue;
-  }
-}
-
-export function saveToLocalStorage<T>(key: string, value: T): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (err) {
-    console.warn(`Error writing localStorage key ${key}:`, err);
-  }
-}
-
 export class H4ADataManager {
   persons: Person[] = [];
   rules: FineRule[] = [];
@@ -220,40 +199,271 @@ export class H4ADataManager {
   dugnad: DugnadEntry[] = [];
   dugnadActivities: DugnadActivity[] = [];
   settings: TeamSettings = DEFAULT_SETTINGS;
-  isAdminUnlocked: boolean = false;
+
+  currentUser: User | null = null;
+  isAdminAuthenticated: boolean = false;
+  isConfigured: boolean = isFirebaseConfigured;
+  connectionError: string | null = null;
+  isLoading: boolean = true;
 
   private listeners: (() => void)[] = [];
+  private unsubscribers: (() => void)[] = [];
 
   constructor() {
-    this.init();
+    if (typeof window !== "undefined") {
+      this.init();
+    }
   }
 
   init() {
-    this.persons = sortPersonsAlphabetically(loadFromLocalStorage<Person[]>(STORAGE_KEYS.PERSONS, DEFAULT_PERSONS));
-    this.rules = this.sortRulesByFine(loadFromLocalStorage<FineRule[]>(STORAGE_KEYS.RULES, DEFAULT_FINE_RULES));
-    this.fines = loadFromLocalStorage<FineReport[]>(STORAGE_KEYS.FINES, INITIAL_FINES);
-    this.dugnad = loadFromLocalStorage<DugnadEntry[]>(STORAGE_KEYS.DUGNAD, INITIAL_DUGNAD);
-    this.dugnadActivities = loadFromLocalStorage<DugnadActivity[]>(STORAGE_KEYS.DUGNAD_ACTIVITIES, DEFAULT_DUGNAD_ACTIVITIES);
-    this.settings = loadFromLocalStorage<TeamSettings>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
-
-    if (typeof window !== "undefined") {
-      this.isAdminUnlocked = sessionStorage.getItem("h4a_admin_session_unlocked") === "true";
+    if (!this.isConfigured) {
+      this.connectionError = "Firebase configuration is missing or incomplete. Please supply Firebase credentials in environment variables.";
+      this.isLoading = false;
+      this.notify();
+      return;
     }
 
-    this.syncFromFirestore();
+    // Auth State Listener with strict server-side administrator verification
+    onAuthStateChanged(auth, async (user) => {
+      this.currentUser = user;
+      if (user) {
+        this.isAdminAuthenticated = await this.verifyAdminPrivileges(user);
+      } else {
+        this.isAdminAuthenticated = false;
+      }
+      this.notify();
+    });
+
+    // Start Real-Time Firestore Listeners for authoritative shared state
+    this.startListeners();
   }
 
-  setAdminUnlocked(unlocked: boolean): void {
-    this.isAdminUnlocked = unlocked;
-    if (typeof window !== "undefined") {
-      if (unlocked) {
-        sessionStorage.setItem("h4a_admin_session_unlocked", "true");
-      } else {
-        sessionStorage.removeItem("h4a_admin_session_unlocked");
+  /**
+   * Authoritative Admin Verification:
+   * Checks custom auth claims (admin: true / role: admin) OR doc in /admins/{uid}.
+   */
+  async verifyAdminPrivileges(user: User): Promise<boolean> {
+    try {
+      // 1. Check custom claims
+      const tokenResult = await user.getIdTokenResult();
+      if (tokenResult.claims.admin === true || tokenResult.claims.role === "admin") {
+        return true;
       }
+
+      // 2. Check /admins/{uid} doc
+      const adminDoc = await getDoc(doc(database, "admins", user.uid));
+      if (adminDoc.exists()) {
+        const data = adminDoc.data();
+        if (data.role === "admin" || data.role === "superadmin" || data.active !== false) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (err) {
+      console.warn("Could not verify administrator privileges:", err);
+      return false;
     }
+  }
+
+  private startListeners() {
+    try {
+      // 1. Persons / Roster Listener
+      const unsubPersons = onSnapshot(
+        collection(database, "persons"),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const list: Person[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data() as Person;
+              list.push({ ...data, id: docSnap.id });
+            });
+            this.persons = sortPersonsAlphabetically(list);
+          } else {
+            this.persons = [...DEFAULT_PERSONS];
+          }
+          this.isLoading = false;
+          this.notify();
+        },
+        (err) => {
+          console.error("Persons listener error:", err);
+          this.connectionError = `Error syncing roster: ${err.message}`;
+          this.notify();
+        }
+      );
+      this.unsubscribers.push(unsubPersons);
+
+      // 2. Fine Rules Listener
+      const unsubRules = onSnapshot(
+        collection(database, "fine_rules"),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const list: FineRule[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data() as FineRule;
+              list.push({ ...data, id: docSnap.id });
+            });
+            this.rules = this.sortRulesByFine(list);
+          } else {
+            this.rules = this.sortRulesByFine([...DEFAULT_FINE_RULES]);
+          }
+          this.notify();
+        },
+        (err) => {
+          console.error("Rules listener error:", err);
+        }
+      );
+      this.unsubscribers.push(unsubRules);
+
+      // 3. Dugnad Activity Types Listener
+      const unsubActs = onSnapshot(
+        collection(database, "dugnad_activities"),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const list: DugnadActivity[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data() as DugnadActivity;
+              list.push({ ...data, id: docSnap.id });
+            });
+            this.dugnadActivities = list;
+          } else {
+            this.dugnadActivities = [...DEFAULT_DUGNAD_ACTIVITIES];
+          }
+          this.notify();
+        },
+        (err) => {
+          console.error("Dugnad activities listener error:", err);
+        }
+      );
+      this.unsubscribers.push(unsubActs);
+
+      // 4. Team Settings Listener
+      const unsubSettings = onSnapshot(
+        doc(database, "settings", "team"),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            this.settings = { ...DEFAULT_SETTINGS, ...docSnap.data() } as TeamSettings;
+          } else {
+            this.settings = { ...DEFAULT_SETTINGS };
+          }
+          this.notify();
+        },
+        (err) => {
+          console.error("Settings listener error:", err);
+        }
+      );
+      this.unsubscribers.push(unsubSettings);
+
+      // 5. Fine Reports Listener
+      const unsubFines = onSnapshot(
+        collection(database, "fines"),
+        (snapshot) => {
+          const list: FineReport[] = [];
+          snapshot.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              playerId: d.playerId || "",
+              playerName: d.playerName || "",
+              ruleIds: d.ruleIds || [],
+              ruleTitles: d.ruleTitles || [],
+              totalFine: Number(d.totalFine || 0),
+              comment: d.comment || "",
+              reportedBy: d.reportedBy || "",
+              date: d.date || new Date().toISOString(),
+              eventContext: d.eventContext || "Practice",
+              status: d.status || "pending",
+              paid: Boolean(d.paid),
+              paidDate: d.paidDate
+            });
+          });
+          list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          this.fines = list;
+          this.notify();
+        },
+        (err) => {
+          console.error("Fines listener error:", err);
+          this.connectionError = `Error syncing fines: ${err.message}`;
+          this.notify();
+        }
+      );
+      this.unsubscribers.push(unsubFines);
+
+      // 6. Dugnad Entries Listener
+      const unsubDugnad = onSnapshot(
+        collection(database, "dugnad_entries"),
+        (snapshot) => {
+          const list: DugnadEntry[] = [];
+          snapshot.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              playerId: d.playerId || "",
+              playerName: d.playerName || "",
+              activityType: d.activityType || "",
+              hours: Number(d.hours || 0),
+              points: Number(d.points || 0),
+              dutyHours: d.dutyHours != null ? Number(d.dutyHours) : undefined,
+              dutyPoints: d.dutyPoints != null ? Number(d.dutyPoints) : undefined,
+              hadTravel: Boolean(d.hadTravel),
+              travelHours: d.travelHours != null ? Number(d.travelHours) : undefined,
+              travelPoints: d.travelPoints != null ? Number(d.travelPoints) : undefined,
+              comment: d.comment || "",
+              date: d.date || new Date().toISOString(),
+              reportedBy: d.reportedBy || "",
+              status: d.status || "pending"
+            });
+          });
+          list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          this.dugnad = list;
+          this.notify();
+        },
+        (err) => {
+          console.error("Dugnad listener error:", err);
+          this.connectionError = `Error syncing dugnad entries: ${err.message}`;
+          this.notify();
+        }
+      );
+      this.unsubscribers.push(unsubDugnad);
+
+    } catch (err: any) {
+      console.error("Failed to initialize Firestore listeners:", err);
+      this.connectionError = err?.message || "Failed to connect to Firestore";
+      this.isLoading = false;
+      this.notify();
+    }
+  }
+
+  // --- Auth Operations ---
+
+  async loginAdmin(email: string, password: string): Promise<void> {
+    if (!this.isConfigured) {
+      throw new Error("Firebase is not configured. Please supply Firebase credentials in environment variables.");
+    }
+    const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+    const hasPrivileges = await this.verifyAdminPrivileges(cred.user);
+    if (!hasPrivileges) {
+      await signOut(auth);
+      this.currentUser = null;
+      this.isAdminAuthenticated = false;
+      this.notify();
+      throw new Error(
+        `Account (${cred.user.email}) is authenticated, but is not authorized as an administrator. Add document /admins/${cred.user.uid} with { role: "admin" } or assign admin custom claims in Firebase.`
+      );
+    }
+    this.currentUser = cred.user;
+    this.isAdminAuthenticated = true;
     this.notify();
   }
+
+  async logoutAdmin(): Promise<void> {
+    await signOut(auth);
+    this.currentUser = null;
+    this.isAdminAuthenticated = false;
+    this.notify();
+  }
+
+  // --- Utility Getters & Helpers ---
 
   get players(): Person[] {
     return this.persons.filter(p => p.type === "player");
@@ -289,136 +499,105 @@ export class H4ADataManager {
     }
   }
 
-  async syncFromFirestore() {
-    if (typeof window === "undefined") return;
-    try {
-      const finesCol = collection(database, "prikk_melding");
-      const finesSnap = await getDocs(finesCol);
-      if (!finesSnap.empty) {
-        const remoteFines: FineReport[] = [];
-        finesSnap.docs.forEach(docSnap => {
-          const d = docSnap.data();
-          const dateVal = d.date?.toDate ? d.date.toDate().toISOString() : (typeof d.date === "string" ? d.date : new Date().toISOString());
-          remoteFines.push({
-            id: docSnap.id,
-            playerId: d.playerId || "unknown",
-            playerName: d.playerName || "Player",
-            ruleIds: d.ruleIds || [],
-            ruleTitles: d.ruleTitles || ["Reported fine"],
-            totalFine: Number(d.totalFine || 50),
-            comment: d.comment || "",
-            reportedBy: d.reportedBy || "Teammate",
-            date: dateVal,
-            eventContext: d.eventContext || "Practice",
-            status: d.status || "approved",
-            paid: Boolean(d.paid)
-          });
-        });
+  // --- Fine Reports Operations ---
 
-        const existingIds = new Set(this.fines.map(f => f.id));
-        const newOnes = remoteFines.filter(f => !existingIds.has(f.id));
-        if (newOnes.length > 0) {
-          this.fines = [...newOnes, ...this.fines];
-          saveToLocalStorage(STORAGE_KEYS.FINES, this.fines);
-          this.notify();
-        }
-      }
-    } catch (e) {
-      // LocalStorage fallback is reliable
-    }
-  }
-
-  // --- Fine Submissions ---
   async addFineReport(report: Omit<FineReport, "id" | "date" | "status"> & { date?: string; status?: FineReport["status"] }): Promise<FineReport> {
+    const id = "fine_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
     const newReport: FineReport = {
       ...report,
-      id: "fine_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+      id,
       date: report.date || new Date().toISOString(),
       status: report.status || "pending",
       paid: false
     };
 
-    this.fines = [newReport, ...this.fines];
-    saveToLocalStorage(STORAGE_KEYS.FINES, this.fines);
-    this.notify();
-
     try {
-      await addDoc(collection(database, "prikk_melding"), {
+      await setDoc(doc(database, "fines", id), {
         ...newReport,
-        timestamp: new Date()
+        createdAt: new Date().toISOString()
       });
+      return newReport;
     } catch (err) {
-      console.warn("Firestore sync skipped:", err);
+      handleFirestoreError(err, OperationType.CREATE, `fines/${id}`);
     }
-
-    return newReport;
   }
 
   async updateFine(id: string, updates: Partial<FineReport>): Promise<void> {
-    this.fines = this.fines.map(f => f.id === id ? { ...f, ...updates } : f);
-    saveToLocalStorage(STORAGE_KEYS.FINES, this.fines);
-    this.notify();
+    try {
+      await updateDoc(doc(database, "fines", id), updates);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `fines/${id}`);
+    }
   }
 
   async setFineStatus(id: string, status: "approved" | "rejected" | "pending"): Promise<void> {
-    this.fines = this.fines.map(f => f.id === id ? { ...f, status } : f);
-    saveToLocalStorage(STORAGE_KEYS.FINES, this.fines);
-    this.notify();
+    try {
+      await updateDoc(doc(database, "fines", id), { status });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `fines/${id}`);
+    }
   }
 
   async deleteFine(fineId: string): Promise<void> {
-    this.fines = this.fines.filter(f => f.id !== fineId);
-    saveToLocalStorage(STORAGE_KEYS.FINES, this.fines);
-    this.notify();
+    try {
+      await deleteDoc(doc(database, "fines", fineId));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `fines/${fineId}`);
+    }
   }
 
-  // --- Volunteer / Dugnad Submissions ---
+  // --- Dugnad / Volunteer Operations ---
+
   async addDugnadEntry(entry: Omit<DugnadEntry, "id" | "date" | "status"> & { date?: string; status?: DugnadEntry["status"] }): Promise<DugnadEntry> {
+    const id = "dug_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
     const newEntry: DugnadEntry = {
       ...entry,
-      id: "dug_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+      id,
       date: entry.date || new Date().toISOString(),
       status: entry.status || "pending"
     };
 
-    this.dugnad = [newEntry, ...this.dugnad];
-    saveToLocalStorage(STORAGE_KEYS.DUGNAD, this.dugnad);
-    this.notify();
-
     try {
-      await addDoc(collection(database, "dugnad_entries"), {
+      await setDoc(doc(database, "dugnad_entries", id), {
         ...newEntry,
-        timestamp: new Date()
+        createdAt: new Date().toISOString()
       });
+      return newEntry;
     } catch (err) {
-      console.warn("Firestore sync skipped for dugnad:", err);
+      handleFirestoreError(err, OperationType.CREATE, `dugnad_entries/${id}`);
     }
-
-    return newEntry;
   }
 
   async updateDugnad(id: string, updates: Partial<DugnadEntry>): Promise<void> {
-    this.dugnad = this.dugnad.map(d => d.id === id ? { ...d, ...updates } : d);
-    saveToLocalStorage(STORAGE_KEYS.DUGNAD, this.dugnad);
-    this.notify();
+    try {
+      await updateDoc(doc(database, "dugnad_entries", id), updates);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `dugnad_entries/${id}`);
+    }
   }
 
   async setDugnadStatus(id: string, status: "approved" | "rejected" | "pending"): Promise<void> {
-    this.dugnad = this.dugnad.map(d => d.id === id ? { ...d, status } : d);
-    saveToLocalStorage(STORAGE_KEYS.DUGNAD, this.dugnad);
-    this.notify();
+    try {
+      await updateDoc(doc(database, "dugnad_entries", id), { status });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `dugnad_entries/${id}`);
+    }
   }
 
   async deleteDugnad(dugnadId: string): Promise<void> {
-    this.dugnad = this.dugnad.filter(d => d.id !== dugnadId);
-    saveToLocalStorage(STORAGE_KEYS.DUGNAD, this.dugnad);
-    this.notify();
+    try {
+      await deleteDoc(doc(database, "dugnad_entries", dugnadId));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `dugnad_entries/${dugnadId}`);
+    }
   }
 
-  // --- Roster / Persons Management ---
-  addPerson(firstName: string, lastName: string, role: string = "Player", type: "player" | "coach" = "player", number?: number): Person {
+  // --- Roster / Persons Operations ---
+
+  async addPerson(firstName: string, lastName: string, role: string = "Player", type: "player" | "coach" = "player", number?: number): Promise<Person> {
+    const id = "person_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
     const newPerson: Person = {
-      id: "person_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+      id,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       role: role.trim(),
@@ -426,39 +605,45 @@ export class H4ADataManager {
       number: number || undefined,
       active: true
     };
-    this.persons = sortPersonsAlphabetically([...this.persons, newPerson]);
-    saveToLocalStorage(STORAGE_KEYS.PERSONS, this.persons);
-    this.notify();
-    return newPerson;
+
+    try {
+      await setDoc(doc(database, "persons", id), newPerson);
+      return newPerson;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, `persons/${id}`);
+    }
   }
 
-  updatePerson(id: string, updates: Partial<Person>): void {
-    this.persons = sortPersonsAlphabetically(
-      this.persons.map(p => p.id === id ? { ...p, ...updates } : p)
-    );
-    saveToLocalStorage(STORAGE_KEYS.PERSONS, this.persons);
-    this.notify();
+  async updatePerson(id: string, updates: Partial<Person>): Promise<void> {
+    try {
+      await updateDoc(doc(database, "persons", id), updates);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `persons/${id}`);
+    }
   }
 
-  removePerson(personId: string): void {
-    this.persons = this.persons.filter(p => p.id !== personId);
-    saveToLocalStorage(STORAGE_KEYS.PERSONS, this.persons);
-    this.notify();
+  async removePerson(personId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(database, "persons", personId));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `persons/${personId}`);
+    }
   }
 
-  // --- Direct Person Totals Adjustment (Admin) ---
-  setPersonTotals(personId: string, targetFineSum?: number, targetDutyHours?: number): void {
+  // --- Direct Person Adjustment (Admin) ---
+
+  async setPersonTotals(personId: string, targetFineSum?: number, targetDutyHours?: number): Promise<void> {
     const person = this.persons.find(p => p.id === personId);
     const pName = person ? `${person.firstName} ${person.lastName}`.trim() : "Player";
 
-    // Adjust fines sum if specified
     if (targetFineSum !== undefined && !isNaN(targetFineSum)) {
       const approvedFines = this.fines.filter(f => f.playerId === personId && f.status === "approved");
       const currentFineSum = approvedFines.reduce((sum, f) => sum + (f.totalFine || 0), 0);
       const diff = Math.round(targetFineSum - currentFineSum);
       if (diff !== 0) {
+        const id = "fine_adj_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
         const adjFine: FineReport = {
-          id: "fine_adj_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+          id,
           playerId: personId,
           playerName: pName,
           ruleIds: ["admin_adj"],
@@ -470,20 +655,19 @@ export class H4ADataManager {
           status: "approved",
           paid: false
         };
-        this.fines = [adjFine, ...this.fines];
-        saveToLocalStorage(STORAGE_KEYS.FINES, this.fines);
+        await setDoc(doc(database, "fines", id), adjFine);
       }
     }
 
-    // Adjust duty hours if specified (players only)
     if (targetDutyHours !== undefined && !isNaN(targetDutyHours)) {
       const approvedDugnad = this.dugnad.filter(d => d.playerId === personId && d.status === "approved");
       const currentHours = approvedDugnad.reduce((sum, d) => sum + (d.hours || 0), 0);
       const hoursDiff = Number((targetDutyHours - currentHours).toFixed(2));
       if (hoursDiff !== 0) {
-        const pointsDiff = Math.round(hoursDiff * 10);
+        const id = "dug_adj_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
+        const pointsDiff = Math.round(hoursDiff * (this.settings.hourlyPointsRate || 10));
         const adjDugnad: DugnadEntry = {
-          id: "dug_adj_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+          id,
           playerId: personId,
           playerName: pName,
           activityType: "Admin direct duty adjustment",
@@ -493,90 +677,114 @@ export class H4ADataManager {
           date: new Date().toISOString(),
           status: "approved"
         };
-        this.dugnad = [adjDugnad, ...this.dugnad];
-        saveToLocalStorage(STORAGE_KEYS.DUGNAD, this.dugnad);
+        await setDoc(doc(database, "dugnad_entries", id), adjDugnad);
       }
     }
-
-    this.notify();
   }
 
-  // --- Rules Management ---
-  addFineRule(rule: Omit<FineRule, "id">): FineRule {
-    const newRule: FineRule = {
-      ...rule,
-      id: "rule_" + Date.now()
-    };
-    this.rules = this.sortRulesByFine([...this.rules, newRule]);
-    saveToLocalStorage(STORAGE_KEYS.RULES, this.rules);
-    this.notify();
-    return newRule;
+  // --- Fine Rules Operations ---
+
+  async addFineRule(rule: Omit<FineRule, "id">): Promise<FineRule> {
+    const id = "rule_" + Date.now();
+    const newRule: FineRule = { ...rule, id };
+    try {
+      await setDoc(doc(database, "fine_rules", id), newRule);
+      return newRule;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, `fine_rules/${id}`);
+    }
   }
 
-  updateFineRule(id: string, updates: Partial<FineRule>): void {
-    this.rules = this.sortRulesByFine(
-      this.rules.map(r => r.id === id ? { ...r, ...updates } : r)
-    );
-    saveToLocalStorage(STORAGE_KEYS.RULES, this.rules);
-    this.notify();
+  async updateFineRule(id: string, updates: Partial<FineRule>): Promise<void> {
+    try {
+      await updateDoc(doc(database, "fine_rules", id), updates);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `fine_rules/${id}`);
+    }
   }
 
-  deleteFineRule(ruleId: string): void {
-    this.rules = this.rules.filter(r => r.id !== ruleId);
-    saveToLocalStorage(STORAGE_KEYS.RULES, this.rules);
-    this.notify();
+  async deleteFineRule(ruleId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(database, "fine_rules", ruleId));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `fine_rules/${ruleId}`);
+    }
   }
 
-  // --- Volunteer Activities & Rates Management ---
-  addDugnadActivity(activity: Omit<DugnadActivity, "id">): DugnadActivity {
-    const newActivity: DugnadActivity = {
-      ...activity,
-      id: "dug_act_" + Date.now()
-    };
-    this.dugnadActivities = [...this.dugnadActivities, newActivity];
-    saveToLocalStorage(STORAGE_KEYS.DUGNAD_ACTIVITIES, this.dugnadActivities);
-    this.notify();
-    return newActivity;
+  // --- Volunteer Activities Operations ---
+
+  async addDugnadActivity(activity: Omit<DugnadActivity, "id">): Promise<DugnadActivity> {
+    const id = "dug_act_" + Date.now();
+    const newActivity: DugnadActivity = { ...activity, id };
+    try {
+      await setDoc(doc(database, "dugnad_activities", id), newActivity);
+      return newActivity;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, `dugnad_activities/${id}`);
+    }
   }
 
-  updateDugnadActivity(id: string, updates: Partial<DugnadActivity>): void {
-    this.dugnadActivities = this.dugnadActivities.map(a => a.id === id ? { ...a, ...updates } : a);
-    saveToLocalStorage(STORAGE_KEYS.DUGNAD_ACTIVITIES, this.dugnadActivities);
-    this.notify();
+  async updateDugnadActivity(id: string, updates: Partial<DugnadActivity>): Promise<void> {
+    try {
+      await updateDoc(doc(database, "dugnad_activities", id), updates);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `dugnad_activities/${id}`);
+    }
   }
 
-  deleteDugnadActivity(id: string): void {
-    this.dugnadActivities = this.dugnadActivities.filter(a => a.id !== id);
-    saveToLocalStorage(STORAGE_KEYS.DUGNAD_ACTIVITIES, this.dugnadActivities);
-    this.notify();
+  async deleteDugnadActivity(id: string): Promise<void> {
+    try {
+      await deleteDoc(doc(database, "dugnad_activities", id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `dugnad_activities/${id}`);
+    }
   }
 
-  // --- Settings ---
-  updateSettings(newSettings: Partial<TeamSettings>): void {
-    this.settings = { ...this.settings, ...newSettings };
-    saveToLocalStorage(STORAGE_KEYS.SETTINGS, this.settings);
-    this.notify();
+  // --- Settings Operations ---
+
+  async updateSettings(newSettings: Partial<TeamSettings>): Promise<void> {
+    try {
+      await setDoc(doc(database, "settings", "team"), newSettings, { merge: true });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, "settings/team");
+    }
   }
 
-  setFinePotPublished(published: boolean): void {
-    this.settings = { ...this.settings, finePotPublished: published };
-    saveToLocalStorage(STORAGE_KEYS.SETTINGS, this.settings);
-    this.notify();
+  async setFinePotPublished(published: boolean): Promise<void> {
+    try {
+      await setDoc(doc(database, "settings", "team"), { finePotPublished: published }, { merge: true });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, "settings/team");
+    }
   }
 
-  resetToDefaultData(): void {
-    this.persons = sortPersonsAlphabetically(DEFAULT_PERSONS);
-    this.rules = this.sortRulesByFine(DEFAULT_FINE_RULES);
-    this.fines = INITIAL_FINES;
-    this.dugnad = INITIAL_DUGNAD;
-    this.dugnadActivities = DEFAULT_DUGNAD_ACTIVITIES;
-    this.settings = DEFAULT_SETTINGS;
-    saveToLocalStorage(STORAGE_KEYS.PERSONS, this.persons);
-    saveToLocalStorage(STORAGE_KEYS.RULES, this.rules);
-    saveToLocalStorage(STORAGE_KEYS.FINES, this.fines);
-    saveToLocalStorage(STORAGE_KEYS.DUGNAD, this.dugnad);
-    saveToLocalStorage(STORAGE_KEYS.DUGNAD_ACTIVITIES, this.dugnadActivities);
-    saveToLocalStorage(STORAGE_KEYS.SETTINGS, this.settings);
+  // --- Initial Seeding / Reset Data (Admin) ---
+
+  async resetToDefaultData(): Promise<void> {
+    if (!this.isAdminAuthenticated) {
+      throw new Error("Admin authentication required to reset database data.");
+    }
+    const batch = writeBatch(database);
+
+    // Seed Persons
+    for (const p of DEFAULT_PERSONS) {
+      batch.set(doc(database, "persons", p.id), p);
+    }
+
+    // Seed Fine Rules
+    for (const r of DEFAULT_FINE_RULES) {
+      batch.set(doc(database, "fine_rules", r.id), r);
+    }
+
+    // Seed Dugnad Activities
+    for (const d of DEFAULT_DUGNAD_ACTIVITIES) {
+      batch.set(doc(database, "dugnad_activities", d.id), d);
+    }
+
+    // Seed Settings
+    batch.set(doc(database, "settings", "team"), DEFAULT_SETTINGS);
+
+    await batch.commit();
     this.notify();
   }
 }
