@@ -1,6 +1,6 @@
 <script lang="ts">
   import confetti from "canvas-confetti";
-  import { CheckCircle2, AlertCircle, User, FileText, Check, ShieldAlert, AlertTriangle } from "lucide-svelte";
+  import { CheckCircle2, AlertCircle, User, FileText, Check, ShieldAlert } from "lucide-svelte";
   import type { Person, FineRule, FineReport, OccasionType } from "$lib/types";
   import { getPublicDisplayName } from "$lib/utils/nameHelper";
   import { getRuleFineForOccasion, isRuleApplicableForOccasion } from "$lib/utils/store";
@@ -309,27 +309,20 @@
 
       <!-- STEP 3 for "Other" Occasion: Custom written violation, no amount specified (admin will approve and set amount) -->
       {#if eventContext === "Other"}
-        <div class="p-4 bg-amber-50/90 border border-amber-300 rounded-xl space-y-3">
-          <div class="flex items-start gap-2.5 text-amber-900">
-            <AlertTriangle class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <span class="font-bold text-xs sm:text-sm">Describe Custom Violation:</span>
-              <p class="text-amber-800 text-xs mt-0.5">
-                Write what happened below. There is no fine amount to enter now — the admin will review the submission and set the appropriate amount upon approval.
-              </p>
-            </div>
-          </div>
-
+        <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
           <div>
-            <label for="other-custom-violation" class="block text-xs font-bold text-amber-950 mb-1">
+            <label for="other-custom-violation" class="block text-xs font-bold text-slate-800 mb-1">
               Custom Violation / Incident Description *
             </label>
+            <p class="text-slate-500 text-xs mb-2">
+              Write what happened below, a fine will be decided later.
+            </p>
             <textarea
               id="other-custom-violation"
               rows="2"
               placeholder="e.g. Forgot balls at the hall after private scrimmage..."
               bind:value={customOtherViolation}
-              class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-amber-400 rounded-xl text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-amber-300"
+              class="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400"
             ></textarea>
           </div>
         </div>

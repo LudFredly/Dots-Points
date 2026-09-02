@@ -94,10 +94,7 @@
         class="flex items-center gap-2 px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer {activeView === 'fines' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-700 hover:text-slate-950'}"
       >
         <ShieldAlert class="w-4 h-4 text-emerald-400" />
-        <span>Fine Standings</span>
-        {#if !settings.finePotPublished}
-          <Lock class="w-3 h-3 text-amber-400 ml-1" />
-        {/if}
+        <span>Penalty Leaderboard</span>
       </button>
 
       <button
@@ -111,7 +108,7 @@
     </div>
   </div>
 
-  <!-- VIEW 1: FINE STANDINGS -->
+  <!-- VIEW 1: PENALTY LEADERBOARD -->
   {#if activeView === "fines"}
     {#if !settings.finePotPublished}
       <!-- HIDDEN STATE UNTIL ADMIN PUBLISHES -->
@@ -121,15 +118,11 @@
         </div>
         <div class="space-y-2">
           <h3 class="text-xl font-bold text-slate-900 tracking-tight">
-            Penalty Standings Are Hidden
+            Penalty Leaderboards Are Hidden
           </h3>
           <p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
-            The team fine leaderboard and total penalty pot remain confidential until the official end-of-season reveal published by the team administrator.
+            The team penalty leaderboard and total penalty pot remain confidential until the next penalty party draws near.
           </p>
-        </div>
-        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700">
-          <Shield class="w-3.5 h-3.5 text-slate-500" />
-          <span>Fines are still being logged & recorded safely</span>
         </div>
       </div>
     {:else}
@@ -212,7 +205,7 @@
             <div class="p-4 bg-slate-800 text-white flex items-center justify-between">
               <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
                 <UserCheck class="w-4 h-4 text-teal-300" />
-                <span>Coaches Penalty Standings</span>
+                <span>Coaches Penalty Leaderboard</span>
               </div>
               <span class="text-[11px] text-slate-300">Coaching Staff</span>
             </div>
@@ -269,9 +262,6 @@
             <div class="text-xl sm:text-2xl font-black text-teal-950">
               {item.totalPoints} pts
             </div>
-            <div class="text-[11px] text-slate-500 font-medium">
-              {item.totalHours.toFixed(1)} duty hours • {item.count} {item.count === 1 ? 'log' : 'logs'}
-            </div>
           </div>
         {/each}
       </div>
@@ -281,10 +271,7 @@
         <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
           <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
             <HeartHandshake class="w-4 h-4 text-teal-400" />
-            <span>Club Duty Standings (Players Only)</span>
-          </div>
-          <div class="text-xs text-slate-300">
-            Total Hours: <span class="font-bold text-white">{totalDugnadHours.toFixed(1)} hrs</span>
+            <span>Club Duty Leaderboard</span>
           </div>
         </div>
 
@@ -308,9 +295,6 @@
               <div class="text-right">
                 <div class="font-black text-xs sm:text-sm text-teal-900">
                   {item.totalPoints} pts
-                </div>
-                <div class="text-[11px] text-slate-400 font-medium">
-                  {item.totalHours.toFixed(1)} hrs • {item.count} {item.count === 1 ? 'duty' : 'duties'}
                 </div>
               </div>
             </div>

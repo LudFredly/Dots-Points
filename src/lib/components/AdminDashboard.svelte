@@ -84,8 +84,7 @@
 
   // Admin Authentication State via Firebase Auth
   let isAuthenticated = $derived(h4aStore.isAdminAuthenticated);
-  let adminEmailInput = $state("");
-  let adminPasswordInput = $state("");
+  let adminKeyInput = $state("");
   let authError = $state("");
   let isLoggingIn = $state(false);
   let showPassword = $state(false);
@@ -95,18 +94,12 @@
     authError = "";
     isLoggingIn = true;
     try {
-      await h4aStore.loginAdmin(adminEmailInput, adminPasswordInput);
-      adminPasswordInput = "";
-      notify("Admin console unlocked successfully.");
+      await h4aStore.loginWithAdminKey(adminKeyInput);
+      adminKeyInput = "";
+      notify("Admin-konsollen er låst opp.");
     } catch (err: any) {
       console.error("Admin sign-in error:", err);
-      if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
-        authError = "Invalid admin email or password.";
-      } else if (err.code === "auth/invalid-email") {
-        authError = "Please enter a valid email address.";
-      } else {
-        authError = err.message || "Failed to sign in as admin.";
-      }
+      authError = err.message || "Kunne ikke låse opp som administrator.";
     } finally {
       isLoggingIn = false;
     }
@@ -115,8 +108,8 @@
   async function handleExitAdmin() {
     try {
       await h4aStore.logoutAdmin();
-      adminPasswordInput = "";
-      notify("Signed out of Admin Console.");
+      adminKeyInput = "";
+      notify("Logget ut av Admin-konsollen.");
       onExitAdmin?.();
     } catch (err: any) {
       console.error("Sign out error:", err);
@@ -323,7 +316,7 @@
       h4aStore.setPersonTotals(editingPerson.id, targetFine, targetDuty);
     }
 
-    notify("Team member and standings updated successfully.");
+    notify("Team member and leaderboards updated successfully.");
     editingPerson = null;
   }
 
@@ -460,7 +453,7 @@
     });
     notify(
       !settings.finePotPublished
-        ? "Fine pot and player standings are now PUBLISHED to team members."
+        ? "Fine pot and penalty leaderboard are now PUBLISHED to team members."
         : "Fine pot is now HIDDEN from public view."
     );
   }
@@ -485,102 +478,36 @@
   {/if}
 
   {#if !isAuthenticated}
-    <!-- Firebase Auth Login View -->
-    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 sm:p-8 max-w-md mx-auto text-center space-y-5">
-      <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center shadow-inner">
+    <!-- Access Denied View (No public login form) -->
+    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 sm:p-8 max-w-md mx-auto text-center space-y-4">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center shadow-inner">
         <Lock class="w-7 h-7" />
       </div>
 
       <div>
         <h2 class="text-xl font-bold text-slate-900 tracking-tight">
-          Admin Portal Access
+          Adgang krever autorisasjon
         </h2>
-        <p class="text-xs sm:text-sm text-slate-500 mt-1">
-          Sign in with your Firebase administrator account to manage fines, roster, rules, and approvals for {settings?.teamName || 'H4A'} {settings?.season || '26/27'}.
+        <p class="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
+          Administratorpanelet har ingen offentlig innlogging og kan kun åpnes via din private, hemmelige admin-lenke.
         </p>
       </div>
 
-      {#if !h4aStore.isConfigured}
-        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-medium text-left">
-          <strong>Configuration Notice:</strong> Firebase credentials are missing in environment variables. Add them to enable cloud sync and authentication.
-        </div>
-      {/if}
-
-      {#if authError}
-        <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold flex items-center gap-2 text-left">
-          <AlertCircle class="w-4 h-4 shrink-0 text-rose-600" />
-          <span>{authError}</span>
-        </div>
-      {/if}
-
-      <form onsubmit={handleAdminLogin} class="space-y-4 text-left">
-        <div>
-          <label for="admin-email" class="block text-xs font-bold text-slate-700 mb-1">
-            Admin Email
-          </label>
-          <input
-            id="admin-email"
-            type="email"
-            placeholder="admin@team.com"
-            bind:value={adminEmailInput}
-            required
-            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-300 rounded-xl text-slate-900 text-sm"
-          />
-        </div>
-
-        <div>
-          <label for="admin-pass" class="block text-xs font-bold text-slate-700 mb-1">
-            Password
-          </label>
-          <div class="relative">
-            <input
-              id="admin-pass"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••••••"
-              bind:value={adminPasswordInput}
-              required
-              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-300 rounded-xl text-slate-900 font-mono text-sm"
-            />
-            <button
-              type="button"
-              onclick={() => showPassword = !showPassword}
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
-          </div>
-        </div>
-
-        <div class="space-y-2 pt-1">
+      {#if onExitAdmin}
+        <div class="pt-2">
           <button
-            type="submit"
-            disabled={isLoggingIn || !h4aStore.isConfigured}
-            class="w-full py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-emerald-400 font-black rounded-xl text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+            type="button"
+            onclick={onExitAdmin}
+            class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
           >
-            {#if isLoggingIn}
-              <RefreshCw class="w-4 h-4 animate-spin text-emerald-400" />
-              <span>Authenticating...</span>
-            {:else}
-              <Lock class="w-4 h-4" />
-              <span>Sign In as Admin</span>
-            {/if}
+            <LogOut class="w-3.5 h-3.5" />
+            <span>Tilbake til portalen</span>
           </button>
-
-          {#if onExitAdmin}
-            <button
-              type="button"
-              onclick={onExitAdmin}
-              class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <LogOut class="w-3.5 h-3.5" />
-              <span>Return to Main Site</span>
-            </button>
-          {/if}
         </div>
-      </form>
+      {/if}
 
       <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-400 text-center">
-        Secured with Firebase Authentication & Zero-Trust Cloud Rules
+        Sikret med Firebase Security Rules (rollebeskyttet på databasesiden)
       </div>
     </div>
   {:else}
@@ -596,11 +523,9 @@
         <h2 class="text-lg sm:text-xl font-bold text-white mt-1">
           Team Management & Approval Headquarters
         </h2>
-        {#if h4aStore.currentUser?.email}
-          <div class="text-xs text-slate-400 mt-0.5">
-            Signed in as <span class="text-slate-200 font-medium">{h4aStore.currentUser.email}</span>
-          </div>
-        {/if}
+        <div class="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
+          <span class="text-emerald-400 font-medium">Autentisert som administrator</span>
+        </div>
       </div>
 
       <div class="flex items-center gap-2 flex-wrap">
@@ -883,7 +808,7 @@
         <div class="p-4 sm:p-5 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 class="text-base sm:text-lg font-bold text-white tracking-tight">
-              Team Roster & Individual Standings
+              Team Roster & Individual Leaderboards
             </h3>
             <p class="text-xs text-slate-400">
               Full names displayed. Alphabetically sorted. Add or remove players and coaches.
@@ -1360,7 +1285,7 @@
                   <input
                     id="new-act-rate"
                     type="number"
-                    step="1"
+                    step="0.5"
                     min="1"
                     bind:value={newDugnadActPointsPerHour}
                     required
@@ -1577,7 +1502,7 @@
           <div class="flex items-start justify-between gap-4">
             <div>
               <div class="text-xs font-bold uppercase tracking-wider {settings.finePotPublished ? 'text-emerald-800' : 'text-amber-800'}">
-                Penalty Pot & Standings Privacy
+                Penalty Pot & Leaderboards Privacy
               </div>
               <div class="text-base font-black text-slate-900 mt-0.5">
                 {#if settings.finePotPublished}
@@ -1587,7 +1512,7 @@
                 {/if}
               </div>
               <p class="text-xs text-slate-600 mt-1 max-w-xl">
-                When hidden, the total fine pot in the header and the player standings leaderboard are concealed from public view. Toggle on when you are ready to reveal the season end results.
+                When hidden, the total fine pot in the header and the penalty leaderboard are concealed from public view. Toggle on when you are ready to reveal the season end results.
               </p>
             </div>
 
@@ -1604,7 +1529,7 @@
               {:else}
                 <span class="flex items-center gap-1.5">
                   <Lock class="w-4 h-4" />
-                  <span>Publish Standings</span>
+                  <span>Publish Leaderboards</span>
                 </span>
               {/if}
             </button>
@@ -1809,7 +1734,7 @@
                 <input
                   id="edit-dug-pts"
                   type="number"
-                  step="1"
+                  step="0.5"
                   min="0"
                   bind:value={editDugnadPoints}
                   class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
@@ -1916,11 +1841,11 @@
               />
             </div>
 
-            <!-- Direct Standings & Totals Adjustment -->
+            <!-- Direct Leaderboards & Totals Adjustment -->
             <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
               <div>
                 <span class="block text-xs font-bold text-slate-800">
-                  Direct Standings & Totals Adjustment
+                  Direct Leaderboards & Totals Adjustment
                 </span>
                 <span class="block text-[11px] text-slate-500 italic mt-0.5">
                   Directly adjust this person's recorded fine total and club duty hours.
@@ -2141,7 +2066,7 @@
                 <input
                   id="edit-act-rate"
                   type="number"
-                  step="1"
+                  step="0.5"
                   min="1"
                   bind:value={editDugnadActPointsPerHour}
                   class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"

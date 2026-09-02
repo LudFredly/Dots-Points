@@ -52,15 +52,15 @@
   );
 
   const dutyPoints = $derived(
-    Math.round(hours * (activeActivityObj?.pointsPerHour || 10))
+    Number((hours * (activeActivityObj?.pointsPerHour || 10)).toFixed(1))
   );
 
   const travelPoints = $derived(
-    hadTravel ? Math.round(Math.max(0, travelHours) * 5) : 0
+    hadTravel ? Number((Math.max(0, travelHours) * 5).toFixed(1)) : 0
   );
 
   const totalCalculatedPoints = $derived(
-    dutyPoints + travelPoints
+    Number((dutyPoints + travelPoints).toFixed(1))
   );
 
   const totalCalculatedHours = $derived(
@@ -168,7 +168,7 @@
           Log Club Duty
         </h2>
         <p class="text-xs sm:text-sm text-slate-400">
-          Record match hosting, kiosk shifts, hall rigging, and duty travel.
+          Record event hosting, kiosk shifts, hall rigging, and duty travel.
         </p>
       </div>
     </div>
@@ -399,12 +399,9 @@
         <div class="text-xs text-slate-400 font-medium">
           Club duty record for {selectedPlayer ? getPublicDisplayName(selectedPlayer, persons) : "selected player"}:
         </div>
-        <div class="flex items-baseline gap-2">
+        <div class="flex items-baseline gap-2 mt-0.5">
           <span class="text-2xl sm:text-3xl font-black tracking-tight text-white">
-            {totalCalculatedHours} hrs
-          </span>
-          <span class="text-xs font-bold text-teal-400">
-            ({totalCalculatedPoints} total points)
+            {totalCalculatedPoints} total points
           </span>
         </div>
       </div>

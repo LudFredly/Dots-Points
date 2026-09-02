@@ -9,8 +9,7 @@ import {
   updateDoc,
   deleteDoc,
   onSnapshot,
-  writeBatch,
-  getDocs
+  writeBatch
 } from "firebase/firestore";
 import {
   signInWithEmailAndPassword,
@@ -206,13 +205,73 @@ export class H4ADataManager {
   connectionError: string | null = null;
   isLoading: boolean = true;
 
+  // Access Key Management
+  expectedAccessKey: string = (import.meta.env.VITE_ACCESS_KEY || "").trim();
+  isAccessGranted: boolean = false;
+
   private listeners: (() => void)[] = [];
   private unsubscribers: (() => void)[] = [];
 
   constructor() {
     if (typeof window !== "undefined") {
+      this.checkAccess();
       this.init();
     }
+  }
+
+  checkAccess(): boolean {
+    if (!this.expectedAccessKey) {
+      this.isAccessGranted = true;
+      return true;
+    }
+
+    if (typeof window !== "undefined") {
+      // 1. Check URL query parameters (e.g. ?key=xyz or ?access_key=xyz)
+      const params = new URLSearchParams(window.location.search);
+      const queryKey = params.get("key") || params.get("access_key");
+      if (queryKey && queryKey.trim() === this.expectedAccessKey) {
+        localStorage.setItem("h4a_portal_access_key", queryKey.trim());
+        this.isAccessGranted = true;
+        // Clean URL query parameters so key is not visible in address bar
+        params.delete("key");
+        params.delete("access_key");
+        const newSearch = params.toString() ? `?${params.toString()}` : "";
+        const cleanUrl = window.location.pathname + newSearch + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+        return true;
+      }
+
+      // 2. Check saved localStorage key
+      const stored = localStorage.getItem("h4a_portal_access_key");
+      if (stored && stored.trim() === this.expectedAccessKey) {
+        this.isAccessGranted = true;
+        return true;
+      }
+    }
+
+    this.isAccessGranted = false;
+    return false;
+  }
+
+  verifyAndGrantAccess(key: string): boolean {
+    const cleanKey = key.trim();
+    if (!this.expectedAccessKey || cleanKey === this.expectedAccessKey) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("h4a_portal_access_key", cleanKey);
+      }
+      this.isAccessGranted = true;
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
+  revokeAccess(): void {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("h4a_portal_access_key");
+    }
+    this.isAccessGranted = !this.expectedAccessKey;
+    this.notify();
   }
 
   init() {
@@ -231,6 +290,9 @@ export class H4ADataManager {
       this.currentUser = user;
       if (user) {
         this.isAdminAuthenticated = await this.verifyAdminPrivileges(user);
+        if (this.isAdminAuthenticated) {
+          this.isAccessGranted = true;
+        }
       } else {
         this.isAdminAuthenticated = false;
       }
@@ -438,6 +500,57 @@ export class H4ADataManager {
   }
 
   // --- Auth Operations ---
+
+  async loginWithAdminKey(adminKey: string): Promise<void> {
+    if (!this.isConfigured) {
+      throw new Error("Firebase er ikke konfigurert. Legg inn Firebase-nøklene i miljøvariabler.");
+    }
+    const cleanKey = adminKey.trim();
+    if (!cleanKey) {
+      throw new Error("Vennligst oppgi ADMIN_ACCESS_KEY.");
+    }
+
+    const adminEmail = (
+      import.meta.env.VITE_ADMIN_EMAIL ||
+      `admin@${import.meta.env.VITE_FIREBASE_PROJECT_ID || "h4a-volleyball"}.internal`
+    ).trim();
+
+    let cred;
+    try {
+      cred = await signInWithEmailAndPassword(auth, adminEmail, cleanKey);
+    } catch (err: any) {
+      console.error("Firebase admin key auth error:", err);
+      if (
+        err.code === "auth/invalid-credential" ||
+        err.code === "auth/wrong-password" ||
+        err.code === "auth/user-not-found"
+      ) {
+        throw new Error(
+          "Ugyldig ADMIN_ACCESS_KEY. Kontroller at nøkkelen er identisk med passordet opprettet for admin-brukeren i Firebase Authentication."
+        );
+      } else if (err.code === "auth/too-many-requests") {
+        throw new Error("For mange mislykkede forsøk. Vent litt og prøv igjen.");
+      } else {
+        throw new Error(err.message || "Kunne ikke autentisere som administrator.");
+      }
+    }
+
+    const hasPrivileges = await this.verifyAdminPrivileges(cred.user);
+    if (!hasPrivileges) {
+      await signOut(auth);
+      this.currentUser = null;
+      this.isAdminAuthenticated = false;
+      this.notify();
+      throw new Error(
+        `Nøkkelen stemmer, men kontoen mangler administratorrettigheter i Firestore. Legg til dokument /admins/${cred.user.uid} med { role: "admin" } i Firestore.`
+      );
+    }
+
+    this.currentUser = cred.user;
+    this.isAdminAuthenticated = true;
+    this.isAccessGranted = true;
+    this.notify();
+  }
 
   async loginAdmin(email: string, password: string): Promise<void> {
     if (!this.isConfigured) {

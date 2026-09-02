@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Shield, Clock, Award, Lock, Unlock, Settings, Users, BookOpen, CheckCircle } from "lucide-svelte";
+  import { Shield, Clock, Award, Lock, Unlock, Settings, Users, BookOpen, CheckCircle, KeyRound } from "lucide-svelte";
+  import { h4aStore } from "$lib/utils/store";
   import type { FineReport, DugnadEntry, Person, TeamSettings } from "$lib/types";
 
   let {
@@ -64,20 +65,34 @@
           <span class="hidden sm:inline">Fine Rules</span>
         </button>
 
-        <button
-          type="button"
-          onclick={() => onSelectTab(activeTab === 'admin' ? 'fine-form' : 'admin')}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs relative {activeTab === 'admin' ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'}"
-          title={activeTab === 'admin' ? 'Exit Admin Dashboard' : 'Open Admin Dashboard'}
-        >
-          <Settings class="w-3.5 h-3.5 {activeTab === 'admin' ? 'text-white' : 'text-emerald-400'}" />
-          <span>{activeTab === 'admin' ? 'Exit Admin' : 'Admin'}</span>
-        </button>
+        {#if h4aStore.expectedAccessKey && h4aStore.isAccessGranted && !h4aStore.isAdminAuthenticated}
+          <button
+            type="button"
+            onclick={() => h4aStore.revokeAccess()}
+            class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 transition-all text-slate-400 hover:text-slate-200 border border-slate-700 cursor-pointer shadow-xs"
+            title="Lås portalen og fjern lagret tilgangsnøkkel"
+          >
+            <KeyRound class="w-3.5 h-3.5 text-slate-400" />
+            <span class="hidden sm:inline">Lås</span>
+          </button>
+        {/if}
+
+        {#if h4aStore.isAdminAuthenticated}
+          <button
+            type="button"
+            onclick={() => onSelectTab(activeTab === 'admin' ? 'fine-form' : 'admin')}
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs relative {activeTab === 'admin' ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'}"
+            title={activeTab === 'admin' ? 'Exit Admin Dashboard' : 'Open Admin Dashboard'}
+          >
+            <Settings class="w-3.5 h-3.5 {activeTab === 'admin' ? 'text-white' : 'text-emerald-400'}" />
+            <span>{activeTab === 'admin' ? 'Exit Admin' : 'Admin'}</span>
+          </button>
+        {/if}
       </div>
     </div>
 
     <!-- Quick Stats Bar -->
-    <div class="mt-3 pt-3 border-t border-slate-800 grid grid-cols-3 gap-2 text-center text-xs">
+    <div class="mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 gap-2 text-center text-xs">
       <!-- Fine Pot Widget -->
       <div class="bg-slate-800/80 rounded-xl py-2 px-3 border border-slate-700/80">
         <div class="text-slate-400 text-[11px] font-medium flex items-center justify-center gap-1 mb-0.5">
@@ -93,27 +108,12 @@
               </span>
             {:else}
               <span title="Unpublished (Admin View)" class="flex items-center gap-0.5 text-[10px] text-amber-400 font-bold bg-amber-950/60 px-1 py-0.2 rounded border border-amber-500/30">
-                <Lock class="w-2.5 h-2.5 text-amber-400" />
                 <span>Admin</span>
               </span>
             {/if}
           {:else}
             <span class="text-slate-300 font-mono tracking-wider font-extrabold">??? kr</span>
-            <span title="Pot total is hidden until published by admin" class="flex items-center">
-              <Lock class="w-3 h-3 text-amber-400" />
-            </span>
           {/if}
-        </div>
-      </div>
-
-      <!-- Volunteer Hours Widget -->
-      <div class="bg-slate-800/80 rounded-xl py-2 px-3 border border-slate-700/80">
-        <div class="text-slate-400 text-[11px] font-medium flex items-center justify-center gap-1 mb-0.5">
-          <Clock class="w-3 h-3 text-teal-400" />
-          <span>Club Duty Hours</span>
-        </div>
-        <div class="font-bold text-white text-sm sm:text-base">
-          {totalDugnadHours.toFixed(1)} hrs
         </div>
       </div>
 
