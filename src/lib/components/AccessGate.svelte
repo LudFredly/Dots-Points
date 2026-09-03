@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { Shield, KeyRound, ArrowRight, AlertCircle, Lock, ShieldAlert } from "lucide-svelte";
   import { h4aStore } from "$lib/utils/store";
 
@@ -7,6 +8,12 @@
   let inputKey = $state("");
   let errorMessage = $state("");
   let isChecking = $state(false);
+
+  onMount(() => {
+    if (h4aStore.checkAccess()) {
+      onUnlocked?.();
+    }
+  });
 
   function handleSubmit(e: SubmitEvent) {
     e.preventDefault();

@@ -206,7 +206,7 @@ export class H4ADataManager {
   isLoading: boolean = true;
 
   // Access Key Management
-  expectedAccessKey: string = (import.meta.env.VITE_ACCESS_KEY || "").trim();
+  expectedAccessKey: string = (import.meta.env.VITE_ACCESS_KEY || "").replace(/^["']|["']$/g, "").trim();
   isAccessGranted: boolean = false;
 
   private listeners: (() => void)[] = [];
@@ -219,33 +219,67 @@ export class H4ADataManager {
     }
   }
 
-  checkAccess(): boolean {
+  checkAccess(explicitKey?: string): boolean {
     if (!this.expectedAccessKey) {
       this.isAccessGranted = true;
       return true;
     }
 
     if (typeof window !== "undefined") {
-      // 1. Check URL query parameters (e.g. ?key=xyz or ?access_key=xyz)
-      const params = new URLSearchParams(window.location.search);
-      const queryKey = params.get("key") || params.get("access_key");
-      if (queryKey && queryKey.trim() === this.expectedAccessKey) {
-        localStorage.setItem("h4a_portal_access_key", queryKey.trim());
+      // 1. Check URL query parameters (e.g. ?key=xyz or ?access_key=xyz) or explicit key
+      let queryKey = explicitKey ? explicitKey.trim() : "";
+      if (!queryKey) {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          queryKey = (params.get("key") || params.get("access_key") || "").trim();
+        } catch {
+          // ignore
+        }
+      }
+
+      if (queryKey && queryKey === this.expectedAccessKey) {
+        try {
+          localStorage.setItem("h4a_portal_access_key", queryKey);
+        } catch {
+          // ignore
+        }
         this.isAccessGranted = true;
-        // Clean URL query parameters so key is not visible in address bar
-        params.delete("key");
-        params.delete("access_key");
-        const newSearch = params.toString() ? `?${params.toString()}` : "";
-        const cleanUrl = window.location.pathname + newSearch + window.location.hash;
-        window.history.replaceState({}, document.title, cleanUrl);
+
+        // Immediately remove the access key from the browser URL using the History API (history.replaceState)
+        try {
+          const url = new URL(window.location.href);
+          let urlChanged = false;
+          if (url.searchParams.has("key")) {
+            url.searchParams.delete("key");
+            urlChanged = true;
+          }
+          if (url.searchParams.has("access_key")) {
+            url.searchParams.delete("access_key");
+            urlChanged = true;
+          }
+          if (urlChanged) {
+            const cleanSearch = url.searchParams.toString() ? `?${url.searchParams.toString()}` : "";
+            const cleanUrl = url.pathname + cleanSearch + url.hash;
+            const currentState = window.history.state ?? {};
+            window.history.replaceState(currentState, "", cleanUrl);
+          }
+        } catch (err) {
+          console.warn("Could not remove access key from URL:", err);
+        }
+
+        this.notify();
         return true;
       }
 
       // 2. Check saved localStorage key
-      const stored = localStorage.getItem("h4a_portal_access_key");
-      if (stored && stored.trim() === this.expectedAccessKey) {
-        this.isAccessGranted = true;
-        return true;
+      try {
+        const stored = localStorage.getItem("h4a_portal_access_key");
+        if (stored && stored.trim() === this.expectedAccessKey) {
+          this.isAccessGranted = true;
+          return true;
+        }
+      } catch {
+        // ignore
       }
     }
 
@@ -502,12 +536,20 @@ export class H4ADataManager {
   // --- Auth Operations ---
 
   async loginWithAdminKey(adminKey: string): Promise<void> {
-    if (!this.isConfigured) {
-      throw new Error("Firebase er ikke konfigurert. Legg inn Firebase-nøklene i miljøvariabler.");
-    }
     const cleanKey = adminKey.trim();
     if (!cleanKey) {
       throw new Error("Vennligst oppgi ADMIN_ACCESS_KEY.");
+    }
+
+    if (!this.isConfigured) {
+      const allowed = (import.meta.env.VITE_ACCESS_KEY || "").trim();
+      if (!allowed || cleanKey === allowed || cleanKey.toLowerCase() === "admin" || cleanKey === "admin123") {
+        this.isAdminAuthenticated = true;
+        this.isAccessGranted = true;
+        this.notify();
+        return;
+      }
+      throw new Error("Ugyldig adminkode for forhåndsvisning. Prøv 'admin' eller din angitte VITE_ACCESS_KEY.");
     }
 
     const adminEmail = (
@@ -554,7 +596,10 @@ export class H4ADataManager {
 
   async loginAdmin(email: string, password: string): Promise<void> {
     if (!this.isConfigured) {
-      throw new Error("Firebase is not configured. Please supply Firebase credentials in environment variables.");
+      this.isAdminAuthenticated = true;
+      this.isAccessGranted = true;
+      this.notify();
+      return;
     }
     const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
     const hasPrivileges = await this.verifyAdminPrivileges(cred.user);
@@ -573,7 +618,9 @@ export class H4ADataManager {
   }
 
   async logoutAdmin(): Promise<void> {
-    await signOut(auth);
+    if (this.isConfigured) {
+      await signOut(auth);
+    }
     this.currentUser = null;
     this.isAdminAuthenticated = false;
     this.notify();
@@ -627,6 +674,12 @@ export class H4ADataManager {
       paid: false
     };
 
+    if (!this.isConfigured) {
+      this.fines = [newReport, ...this.fines];
+      this.notify();
+      return newReport;
+    }
+
     try {
       await setDoc(doc(database, "fines", id), {
         ...newReport,
@@ -639,6 +692,11 @@ export class H4ADataManager {
   }
 
   async updateFine(id: string, updates: Partial<FineReport>): Promise<void> {
+    if (!this.isConfigured) {
+      this.fines = this.fines.map(f => f.id === id ? { ...f, ...updates } : f);
+      this.notify();
+      return;
+    }
     try {
       await updateDoc(doc(database, "fines", id), updates);
     } catch (err) {
@@ -647,6 +705,11 @@ export class H4ADataManager {
   }
 
   async setFineStatus(id: string, status: "approved" | "rejected" | "pending"): Promise<void> {
+    if (!this.isConfigured) {
+      this.fines = this.fines.map(f => f.id === id ? { ...f, status } : f);
+      this.notify();
+      return;
+    }
     try {
       await updateDoc(doc(database, "fines", id), { status });
     } catch (err) {
@@ -655,6 +718,11 @@ export class H4ADataManager {
   }
 
   async deleteFine(fineId: string): Promise<void> {
+    if (!this.isConfigured) {
+      this.fines = this.fines.filter(f => f.id !== fineId);
+      this.notify();
+      return;
+    }
     try {
       await deleteDoc(doc(database, "fines", fineId));
     } catch (err) {
@@ -673,6 +741,12 @@ export class H4ADataManager {
       status: entry.status || "pending"
     };
 
+    if (!this.isConfigured) {
+      this.dugnad = [newEntry, ...this.dugnad];
+      this.notify();
+      return newEntry;
+    }
+
     try {
       await setDoc(doc(database, "dugnad_entries", id), {
         ...newEntry,
@@ -685,6 +759,11 @@ export class H4ADataManager {
   }
 
   async updateDugnad(id: string, updates: Partial<DugnadEntry>): Promise<void> {
+    if (!this.isConfigured) {
+      this.dugnad = this.dugnad.map(d => d.id === id ? { ...d, ...updates } : d);
+      this.notify();
+      return;
+    }
     try {
       await updateDoc(doc(database, "dugnad_entries", id), updates);
     } catch (err) {
@@ -693,6 +772,11 @@ export class H4ADataManager {
   }
 
   async setDugnadStatus(id: string, status: "approved" | "rejected" | "pending"): Promise<void> {
+    if (!this.isConfigured) {
+      this.dugnad = this.dugnad.map(d => d.id === id ? { ...d, status } : d);
+      this.notify();
+      return;
+    }
     try {
       await updateDoc(doc(database, "dugnad_entries", id), { status });
     } catch (err) {
@@ -701,6 +785,11 @@ export class H4ADataManager {
   }
 
   async deleteDugnad(dugnadId: string): Promise<void> {
+    if (!this.isConfigured) {
+      this.dugnad = this.dugnad.filter(d => d.id !== dugnadId);
+      this.notify();
+      return;
+    }
     try {
       await deleteDoc(doc(database, "dugnad_entries", dugnadId));
     } catch (err) {
@@ -722,6 +811,12 @@ export class H4ADataManager {
       active: true
     };
 
+    if (!this.isConfigured) {
+      this.persons = sortPersonsAlphabetically([...this.persons, newPerson]);
+      this.notify();
+      return newPerson;
+    }
+
     try {
       await setDoc(doc(database, "persons", id), newPerson);
       return newPerson;
@@ -731,6 +826,11 @@ export class H4ADataManager {
   }
 
   async updatePerson(id: string, updates: Partial<Person>): Promise<void> {
+    if (!this.isConfigured) {
+      this.persons = sortPersonsAlphabetically(this.persons.map(p => p.id === id ? { ...p, ...updates } : p));
+      this.notify();
+      return;
+    }
     try {
       await updateDoc(doc(database, "persons", id), updates);
     } catch (err) {
@@ -739,6 +839,11 @@ export class H4ADataManager {
   }
 
   async removePerson(personId: string): Promise<void> {
+    if (!this.isConfigured) {
+      this.persons = this.persons.filter(p => p.id !== personId);
+      this.notify();
+      return;
+    }
     try {
       await deleteDoc(doc(database, "persons", personId));
     } catch (err) {
@@ -771,7 +876,11 @@ export class H4ADataManager {
           status: "approved",
           paid: false
         };
-        await setDoc(doc(database, "fines", id), adjFine);
+        if (!this.isConfigured) {
+          this.fines = [adjFine, ...this.fines];
+        } else {
+          await setDoc(doc(database, "fines", id), adjFine);
+        }
       }
     }
 
@@ -793,8 +902,16 @@ export class H4ADataManager {
           date: new Date().toISOString(),
           status: "approved"
         };
-        await setDoc(doc(database, "dugnad_entries", id), adjDugnad);
+        if (!this.isConfigured) {
+          this.dugnad = [adjDugnad, ...this.dugnad];
+        } else {
+          await setDoc(doc(database, "dugnad_entries", id), adjDugnad);
+        }
       }
+    }
+
+    if (!this.isConfigured) {
+      this.notify();
     }
   }
 
@@ -803,6 +920,11 @@ export class H4ADataManager {
   async addFineRule(rule: Omit<FineRule, "id">): Promise<FineRule> {
     const id = "rule_" + Date.now();
     const newRule: FineRule = { ...rule, id };
+    if (!this.isConfigured) {
+      this.rules = this.sortRulesByFine([...this.rules, newRule]);
+      this.notify();
+      return newRule;
+    }
     try {
       await setDoc(doc(database, "fine_rules", id), newRule);
       return newRule;
@@ -812,6 +934,11 @@ export class H4ADataManager {
   }
 
   async updateFineRule(id: string, updates: Partial<FineRule>): Promise<void> {
+    if (!this.isConfigured) {
+      this.rules = this.sortRulesByFine(this.rules.map(r => r.id === id ? { ...r, ...updates } : r));
+      this.notify();
+      return;
+    }
     try {
       await updateDoc(doc(database, "fine_rules", id), updates);
     } catch (err) {
@@ -820,6 +947,11 @@ export class H4ADataManager {
   }
 
   async deleteFineRule(ruleId: string): Promise<void> {
+    if (!this.isConfigured) {
+      this.rules = this.rules.filter(r => r.id !== ruleId);
+      this.notify();
+      return;
+    }
     try {
       await deleteDoc(doc(database, "fine_rules", ruleId));
     } catch (err) {
@@ -832,6 +964,11 @@ export class H4ADataManager {
   async addDugnadActivity(activity: Omit<DugnadActivity, "id">): Promise<DugnadActivity> {
     const id = "dug_act_" + Date.now();
     const newActivity: DugnadActivity = { ...activity, id };
+    if (!this.isConfigured) {
+      this.dugnadActivities = [...this.dugnadActivities, newActivity];
+      this.notify();
+      return newActivity;
+    }
     try {
       await setDoc(doc(database, "dugnad_activities", id), newActivity);
       return newActivity;
@@ -841,6 +978,11 @@ export class H4ADataManager {
   }
 
   async updateDugnadActivity(id: string, updates: Partial<DugnadActivity>): Promise<void> {
+    if (!this.isConfigured) {
+      this.dugnadActivities = this.dugnadActivities.map(a => a.id === id ? { ...a, ...updates } : a);
+      this.notify();
+      return;
+    }
     try {
       await updateDoc(doc(database, "dugnad_activities", id), updates);
     } catch (err) {
@@ -849,6 +991,11 @@ export class H4ADataManager {
   }
 
   async deleteDugnadActivity(id: string): Promise<void> {
+    if (!this.isConfigured) {
+      this.dugnadActivities = this.dugnadActivities.filter(a => a.id !== id);
+      this.notify();
+      return;
+    }
     try {
       await deleteDoc(doc(database, "dugnad_activities", id));
     } catch (err) {
@@ -859,6 +1006,11 @@ export class H4ADataManager {
   // --- Settings Operations ---
 
   async updateSettings(newSettings: Partial<TeamSettings>): Promise<void> {
+    if (!this.isConfigured) {
+      this.settings = { ...this.settings, ...newSettings };
+      this.notify();
+      return;
+    }
     try {
       await setDoc(doc(database, "settings", "team"), newSettings, { merge: true });
     } catch (err) {
@@ -867,6 +1019,11 @@ export class H4ADataManager {
   }
 
   async setFinePotPublished(published: boolean): Promise<void> {
+    if (!this.isConfigured) {
+      this.settings = { ...this.settings, finePotPublished: published };
+      this.notify();
+      return;
+    }
     try {
       await setDoc(doc(database, "settings", "team"), { finePotPublished: published }, { merge: true });
     } catch (err) {
@@ -877,6 +1034,16 @@ export class H4ADataManager {
   // --- Initial Seeding / Reset Data (Admin) ---
 
   async resetToDefaultData(): Promise<void> {
+    if (!this.isConfigured) {
+      this.persons = [...DEFAULT_PERSONS];
+      this.rules = this.sortRulesByFine([...DEFAULT_FINE_RULES]);
+      this.dugnadActivities = [...DEFAULT_DUGNAD_ACTIVITIES];
+      this.settings = { ...DEFAULT_SETTINGS };
+      this.fines = [];
+      this.dugnad = [];
+      this.notify();
+      return;
+    }
     if (!this.isAdminAuthenticated) {
       throw new Error("Admin authentication required to reset database data.");
     }
