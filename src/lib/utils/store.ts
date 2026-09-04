@@ -17,6 +17,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   onSnapshot,
   writeBatch
 } from "firebase/firestore";
@@ -839,46 +840,94 @@ export class H4ADataManager {
       lastName: lastName.trim(),
       role: role.trim(),
       type,
-      number: number || undefined,
+      number: (number !== undefined && !isNaN(number)) ? number : undefined,
       active: true
     };
 
+    console.log("[H4A Store] addPerson called:", newPerson);
+
+    // Optimistically update local state
+    this.persons = sortPersonsAlphabetically([...this.persons, newPerson]);
+    this.notify();
+
     if (!this.isConfigured) {
-      this.persons = sortPersonsAlphabetically([...this.persons, newPerson]);
-      this.notify();
       return newPerson;
     }
 
     try {
-      await setDoc(doc(database, "persons", id), newPerson);
+      const cleanData: Record<string, any> = {};
+      for (const [k, v] of Object.entries(newPerson)) {
+        if (v !== undefined) {
+          cleanData[k] = v;
+        }
+      }
+      await setDoc(doc(database, "persons", id), cleanData);
+      console.log("[H4A Store] addPerson successfully persisted to Firestore:", id);
       return newPerson;
     } catch (err) {
+      console.error("[H4A Store] addPerson failed in Firestore for persons/" + id, err);
       handleFirestoreError(err, OperationType.CREATE, `persons/${id}`);
     }
   }
 
   async updatePerson(id: string, updates: Partial<Person>): Promise<void> {
+    console.log("[H4A Store] updatePerson called for id:", id, "updates:", updates);
+
+    // 1. Optimistically update local state immediately so UI updates
+    const existing = this.persons.find(p => p.id === id);
+    const updatedPerson: Person = {
+      id,
+      firstName: updates.firstName !== undefined ? updates.firstName : (existing?.firstName ?? ""),
+      lastName: updates.lastName !== undefined ? updates.lastName : (existing?.lastName ?? ""),
+      role: updates.role !== undefined ? updates.role : (existing?.role ?? "Player"),
+      type: updates.type !== undefined ? updates.type : (existing?.type ?? "player"),
+      number: updates.number !== undefined ? updates.number : (updates.number === null ? undefined : existing?.number),
+      active: updates.active !== undefined ? updates.active : (existing?.active ?? true)
+    };
+
+    this.persons = sortPersonsAlphabetically(this.persons.map(p => p.id === id ? updatedPerson : p));
+    this.notify();
+
     if (!this.isConfigured) {
-      this.persons = sortPersonsAlphabetically(this.persons.map(p => p.id === id ? { ...p, ...updates } : p));
-      this.notify();
+      console.log("[H4A Store] Firestore not configured; updated locally only.");
       return;
     }
+
+    // 2. Prepare sanitized payload for Firestore
     try {
-      await updateDoc(doc(database, "persons", id), updates);
+      const cleanUpdates: Record<string, any> = {};
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === undefined || value === null) {
+          // In Firestore, removing a field like 'number' requires deleteField()
+          cleanUpdates[key] = deleteField();
+        } else {
+          cleanUpdates[key] = value;
+        }
+      }
+
+      console.log("[H4A Store] Writing person update to Firestore: persons/" + id, cleanUpdates);
+      // Use setDoc with merge: true so it creates or updates whether the document was in-memory or already stored
+      await setDoc(doc(database, "persons", id), cleanUpdates, { merge: true });
+      console.log("[H4A Store] Successfully updated person in Firestore: persons/" + id);
     } catch (err) {
+      console.error("[H4A Store] updatePerson failed in Firestore for persons/" + id, err);
       handleFirestoreError(err, OperationType.UPDATE, `persons/${id}`);
     }
   }
 
   async removePerson(personId: string): Promise<void> {
+    console.log("[H4A Store] removePerson called for:", personId);
+    this.persons = this.persons.filter(p => p.id !== personId);
+    this.notify();
+
     if (!this.isConfigured) {
-      this.persons = this.persons.filter(p => p.id !== personId);
-      this.notify();
       return;
     }
     try {
       await deleteDoc(doc(database, "persons", personId));
+      console.log("[H4A Store] Successfully deleted person from Firestore: persons/" + personId);
     } catch (err) {
+      console.error("[H4A Store] removePerson failed in Firestore for persons/" + personId, err);
       handleFirestoreError(err, OperationType.DELETE, `persons/${personId}`);
     }
   }
@@ -966,13 +1015,18 @@ export class H4ADataManager {
   }
 
   async updateFineRule(id: string, updates: Partial<FineRule>): Promise<void> {
+    this.rules = this.sortRulesByFine(this.rules.map(r => r.id === id ? { ...r, ...updates } : r));
+    this.notify();
+
     if (!this.isConfigured) {
-      this.rules = this.sortRulesByFine(this.rules.map(r => r.id === id ? { ...r, ...updates } : r));
-      this.notify();
       return;
     }
     try {
-      await updateDoc(doc(database, "fine_rules", id), updates);
+      const cleanUpdates: Record<string, any> = {};
+      for (const [k, v] of Object.entries(updates)) {
+        cleanUpdates[k] = v === undefined ? deleteField() : v;
+      }
+      await setDoc(doc(database, "fine_rules", id), cleanUpdates, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `fine_rules/${id}`);
     }
@@ -1010,13 +1064,18 @@ export class H4ADataManager {
   }
 
   async updateDugnadActivity(id: string, updates: Partial<DugnadActivity>): Promise<void> {
+    this.dugnadActivities = this.dugnadActivities.map(a => a.id === id ? { ...a, ...updates } : a);
+    this.notify();
+
     if (!this.isConfigured) {
-      this.dugnadActivities = this.dugnadActivities.map(a => a.id === id ? { ...a, ...updates } : a);
-      this.notify();
       return;
     }
     try {
-      await updateDoc(doc(database, "dugnad_activities", id), updates);
+      const cleanUpdates: Record<string, any> = {};
+      for (const [k, v] of Object.entries(updates)) {
+        cleanUpdates[k] = v === undefined ? deleteField() : v;
+      }
+      await setDoc(doc(database, "dugnad_activities", id), cleanUpdates, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `dugnad_activities/${id}`);
     }

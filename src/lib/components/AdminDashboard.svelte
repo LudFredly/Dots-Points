@@ -87,10 +87,10 @@
     onApproveDugnad: (id: string) => Promise<void>;
     onRejectDugnad: (id: string) => Promise<void>;
     onUpdateDugnad: (id: string, updates: Partial<DugnadEntry>) => Promise<void>;
-    onAddPerson: (firstName: string, lastName: string, role: string, type: "player" | "coach", number?: number) => void;
-    onUpdatePerson: (id: string, updates: Partial<Person>) => void;
-    onRemovePerson: (id: string) => void;
-    onAdjustPersonTotals?: (personId: string, fineSum?: number, dutyHours?: number) => void;
+    onAddPerson: (firstName: string, lastName: string, role: string, type: "player" | "coach", number?: number) => Promise<void> | void;
+    onUpdatePerson: (id: string, updates: Partial<Person>) => Promise<void> | void;
+    onRemovePerson: (id: string) => Promise<void> | void;
+    onAdjustPersonTotals?: (personId: string, fineSum?: number, dutyHours?: number) => Promise<void> | void;
     onAddFineRule: (rule: Omit<FineRule, "id">) => void;
     onUpdateFineRule: (id: string, updates: Partial<FineRule>) => void;
     onDeleteFineRule: (id: string) => void;
@@ -469,29 +469,50 @@
     editPersonDutyHours = Number(pDug.reduce((sum, d) => sum + (d.hours || 0), 0).toFixed(1));
   }
 
-  function saveEditedPerson() {
+  let isSavingPerson = $state(false);
+
+  async function saveEditedPerson() {
     if (!ensureFirebaseAuth()) return;
     if (!editingPerson || !editPersonFirstName.trim()) return;
 
-    onUpdatePerson(editingPerson.id, {
+    isSavingPerson = true;
+    const personId = editingPerson.id;
+    const numVal = editPersonNumber !== undefined && String(editPersonNumber).trim() !== "" ? Number(editPersonNumber) : undefined;
+
+    console.log("[AdminDashboard] saveEditedPerson saving player:", personId, {
       firstName: editPersonFirstName.trim(),
       lastName: editPersonLastName.trim(),
       type: editPersonType,
       role: editPersonRole.trim(),
-      number: editPersonNumber !== undefined && String(editPersonNumber) !== "" ? Number(editPersonNumber) : undefined
+      number: numVal
     });
 
-    const targetFine = Number(editPersonFineSum) || 0;
-    const targetDuty = editPersonType === 'player' ? (Number(editPersonDutyHours) || 0) : undefined;
+    try {
+      await onUpdatePerson(personId, {
+        firstName: editPersonFirstName.trim(),
+        lastName: editPersonLastName.trim(),
+        type: editPersonType,
+        role: editPersonRole.trim(),
+        number: numVal
+      });
 
-    if (onAdjustPersonTotals) {
-      onAdjustPersonTotals(editingPerson.id, targetFine, targetDuty);
-    } else {
-      h4aStore.setPersonTotals(editingPerson.id, targetFine, targetDuty);
+      const targetFine = Number(editPersonFineSum) || 0;
+      const targetDuty = editPersonType === 'player' ? (Number(editPersonDutyHours) || 0) : undefined;
+
+      if (onAdjustPersonTotals) {
+        await onAdjustPersonTotals(personId, targetFine, targetDuty);
+      } else {
+        await h4aStore.setPersonTotals(personId, targetFine, targetDuty);
+      }
+
+      notify("Spilleren og ledertavlen ble oppdatert!");
+      editingPerson = null;
+    } catch (err: any) {
+      console.error("[AdminDashboard] Error saving player:", err);
+      notify("Kunne ikke lagre spiller: " + (err?.message || "Ukjent feil"), "error");
+    } finally {
+      isSavingPerson = false;
     }
-
-    notify("Team member and leaderboards updated successfully.");
-    editingPerson = null;
   }
 
   function handleAddPersonSubmit(e: SubmitEvent) {
@@ -2603,9 +2624,15 @@
             <button
               type="button"
               onclick={saveEditedPerson}
-              class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+              disabled={isSavingPerson}
+              class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
             >
-              Save Person
+              {#if isSavingPerson}
+                <RefreshCw class="w-3 h-3 animate-spin" />
+                <span>Lagrer...</span>
+              {:else}
+                <span>Lagre person</span>
+              {/if}
             </button>
           </div>
         </div>

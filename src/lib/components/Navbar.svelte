@@ -65,6 +65,18 @@
           <span class="hidden sm:inline">Fine Rules</span>
         </button>
 
+        {#if h4aStore.expectedAccessKey && h4aStore.isAccessGranted && !h4aStore.isAdminAuthenticated}
+          <button
+            type="button"
+            onclick={() => h4aStore.revokeAccess()}
+            class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 transition-all text-slate-400 hover:text-slate-200 border border-slate-700 cursor-pointer shadow-xs"
+            title="Lås portalen og fjern lagret tilgangsnøkkel"
+          >
+            <KeyRound class="w-3.5 h-3.5 text-slate-400" />
+            <span class="hidden sm:inline">Lås</span>
+          </button>
+        {/if}
+
         {#if h4aStore.isAdminAuthenticated || h4aStore.isAdminAccessGranted}
           <button
             type="button"
