@@ -33,7 +33,8 @@
     AlertTriangle,
     CheckCircle,
     ShieldCheck,
-    KeyRound
+    KeyRound,
+    Trophy
   } from "lucide-svelte";
   import type {
     Person,
@@ -290,7 +291,7 @@
     }
   }
 
-  let adminTab = $state<"pending" | "roster" | "rules" | "dugnad_rates" | "records" | "settings" | "backup">("pending");
+  let adminTab = $state<"pending" | "roster" | "duty_leaderboard" | "rules" | "dugnad_rates" | "records" | "settings" | "backup">("pending");
 
   // Notifications
   let bannerMessage = $state<{ type: "success" | "error"; text: string } | null>(null);
@@ -327,6 +328,47 @@
     dugnad.filter(d => d.status === "approved").reduce((sum, d) => sum + (d.hours || 0), 0)
   );
 
+  const approvedTotalPoints = $derived(
+    dugnad.filter(d => d.status === "approved").reduce((sum, d) => sum + (d.points || 0), 0)
+  );
+
+  // Admin reversed Club Duty leaderboard
+  // Shows who has done the least dugnad / has greatest remaining duty obligation
+  // Uses exact same underlying data and calculation logic as regular Club Duty leaderboard
+  const dutyEligiblePersons = $derived(() => {
+    const approvedDugnad = dugnad.filter(d => d.status === "approved");
+    return persons.filter(p => {
+      // Regular players are always eligible
+      if (p.type === "player") return true;
+      // Admin is included as player if admin has person data & dugnad points/records in the dataset
+      const hasDugnadPoints = approvedDugnad.some(d => d.playerId === p.id && (d.points || 0) > 0);
+      const hasDugnadRecord = dugnad.some(d => d.playerId === p.id);
+      const isAdminRole = (p.role && p.role.toLowerCase().includes("admin")) || (p.firstName && p.firstName.toLowerCase().includes("admin"));
+      const isCurrentAdmin = h4aStore.currentUser?.email && (
+        p.firstName.toLowerCase().includes("admin") ||
+        (h4aStore.currentUser.email.split("@")[0].toLowerCase().includes(p.firstName.toLowerCase()))
+      );
+      return hasDugnadPoints || hasDugnadRecord || isAdminRole || isCurrentAdmin;
+    });
+  });
+
+  const adminDutyLeaderboard = $derived(() => {
+    const approvedDugnad = dugnad.filter(d => d.status === "approved");
+    return dutyEligiblePersons().map(p => {
+      const pDugnad = approvedDugnad.filter(d => d.playerId === p.id);
+      const totalHours = pDugnad.reduce((sum, d) => sum + (d.hours || 0), 0);
+      const totalPoints = pDugnad.reduce((sum, d) => sum + (d.points || 0), 0);
+      const count = pDugnad.length;
+      return {
+        person: p,
+        displayName: getAdminFullName(p),
+        totalHours,
+        totalPoints,
+        count
+      };
+    }).sort((a, b) => a.totalPoints - b.totalPoints || a.totalHours - b.totalHours || a.displayName.localeCompare(b.displayName));
+  });
+
   // Effective activities list
   const activeDugnadActivities = $derived(
     (dugnadActivities && dugnadActivities.length > 0) ? dugnadActivities : DEFAULT_DUGNAD_ACTIVITIES
@@ -353,14 +395,19 @@
   let editFinePlayerId = $state("");
   let editFineAmount = $state<number>(0);
   let editFineEventContext = $state<string>("Practice");
+  let editFineStatus = $state<"approved" | "pending" | "rejected">("approved");
+  let editFinePaid = $state<boolean>(false);
   let editFineComment = $state("");
+  let isSavingFine = $state(false);
 
   // Edit Dugnad Entry Modal
   let editingDugnad = $state<DugnadEntry | null>(null);
   let editDugnadPlayerId = $state("");
-  let editDugnadHours = $state<number>(0);
   let editDugnadPoints = $state<number>(0);
+  let editDugnadActivityType = $state<string>("Club Task");
+  let editDugnadStatus = $state<"approved" | "pending" | "rejected">("approved");
   let editDugnadComment = $state("");
+  let isSavingDugnad = $state(false);
 
   // Edit Person Modal
   let editingPerson = $state<Person | null>(null);
@@ -370,7 +417,7 @@
   let editPersonRole = $state("Player");
   let editPersonNumber = $state<number | undefined>(undefined);
   let editPersonFineSum = $state<number>(0);
-  let editPersonDutyHours = $state<number>(0);
+  let editPersonDutyPoints = $state<number>(0);
 
   // Edit Rule Modal - occasion rates mandatory
   let editingRule = $state<FineRule | null>(null);
@@ -409,49 +456,81 @@
     editFinePlayerId = fine.playerId;
     editFineAmount = fine.totalFine;
     editFineEventContext = fine.eventContext || "Practice";
+    editFineStatus = fine.status || "approved";
+    editFinePaid = Boolean(fine.paid);
     editFineComment = fine.comment || "";
   }
 
   async function saveEditedFine() {
+    if (!ensureFirebaseAuth()) return;
     if (!editingFine) return;
-    const person = persons.find(p => p.id === editFinePlayerId);
-    const pName = person ? getAdminFullName(person) : editingFine.playerName;
 
-    await onUpdateFine(editingFine.id, {
-      playerId: editFinePlayerId,
-      playerName: pName,
-      totalFine: Number(editFineAmount),
-      eventContext: editFineEventContext,
-      comment: editFineComment.trim()
-    });
+    isSavingFine = true;
+    try {
+      const person = persons.find(p => p.id === editFinePlayerId);
+      const pName = person ? getAdminFullName(person) : editingFine.playerName;
 
-    notify("Fine record updated successfully.");
-    editingFine = null;
+      await onUpdateFine(editingFine.id, {
+        playerId: editFinePlayerId,
+        playerName: pName,
+        totalFine: Number(editFineAmount),
+        eventContext: editFineEventContext,
+        status: editFineStatus,
+        paid: editFinePaid,
+        comment: editFineComment.trim()
+      });
+
+      notify("Fine record updated successfully.");
+      editingFine = null;
+    } catch (err: any) {
+      console.error("[AdminDashboard] Error saving fine:", err);
+      notify("Kunne ikke lagre bot: " + (err?.message || "Ukjent feil"), "error");
+    } finally {
+      isSavingFine = false;
+    }
   }
 
   function openEditDugnad(entry: DugnadEntry) {
     editingDugnad = entry;
     editDugnadPlayerId = entry.playerId;
-    editDugnadHours = entry.hours;
     editDugnadPoints = entry.points;
+    editDugnadActivityType = entry.activityType || "Club Task";
+    editDugnadStatus = entry.status || "approved";
     editDugnadComment = entry.comment || "";
   }
 
   async function saveEditedDugnad() {
+    if (!ensureFirebaseAuth()) return;
     if (!editingDugnad) return;
-    const person = persons.find(p => p.id === editDugnadPlayerId);
-    const pName = person ? getAdminFullName(person) : editingDugnad.playerName;
 
-    await onUpdateDugnad(editingDugnad.id, {
-      playerId: editDugnadPlayerId,
-      playerName: pName,
-      hours: Number(editDugnadHours),
-      points: Number(editDugnadPoints),
-      comment: editDugnadComment.trim()
-    });
+    isSavingDugnad = true;
+    try {
+      const person = persons.find(p => p.id === editDugnadPlayerId);
+      const pName = person ? getAdminFullName(person) : editingDugnad.playerName;
+      const pts = Number(editDugnadPoints) || 0;
+      const rate = settings.hourlyPointsRate || 10;
+      const hrs = Number((pts / rate).toFixed(2));
 
-    notify("Club duty record updated successfully.");
-    editingDugnad = null;
+      await onUpdateDugnad(editingDugnad.id, {
+        playerId: editDugnadPlayerId,
+        playerName: pName,
+        points: pts,
+        hours: hrs,
+        dutyPoints: pts,
+        dutyHours: hrs,
+        activityType: editDugnadActivityType,
+        status: editDugnadStatus,
+        comment: editDugnadComment.trim()
+      });
+
+      notify("Club duty record updated successfully.");
+      editingDugnad = null;
+    } catch (err: any) {
+      console.error("[AdminDashboard] Error saving duty record:", err);
+      notify("Kunne ikke lagre dugnad: " + (err?.message || "Ukjent feil"), "error");
+    } finally {
+      isSavingDugnad = false;
+    }
   }
 
   function openEditPerson(person: Person) {
@@ -466,7 +545,7 @@
     editPersonFineSum = pFines.reduce((sum, f) => sum + (f.totalFine || 0), 0);
 
     const pDug = dugnad.filter(d => d.playerId === person.id && d.status === 'approved');
-    editPersonDutyHours = Number(pDug.reduce((sum, d) => sum + (d.hours || 0), 0).toFixed(1));
+    editPersonDutyPoints = pDug.reduce((sum, d) => sum + (d.points || 0), 0);
   }
 
   let isSavingPerson = $state(false);
@@ -497,7 +576,8 @@
       });
 
       const targetFine = Number(editPersonFineSum) || 0;
-      const targetDuty = editPersonType === 'player' ? (Number(editPersonDutyHours) || 0) : undefined;
+      const rate = settings.hourlyPointsRate || 10;
+      const targetDuty = editPersonType === 'player' ? ((Number(editPersonDutyPoints) || 0) / rate) : undefined;
 
       if (onAdjustPersonTotals) {
         await onAdjustPersonTotals(personId, targetFine, targetDuty);
@@ -803,7 +883,7 @@
               Fine Pot Status ({settings.finePotPublished ? 'Published' : 'Hidden'})
             </div>
             <div class="text-base sm:text-lg font-black text-emerald-400">
-              {approvedTotalFines} kr <span class="text-xs text-slate-400 font-normal">({approvedTotalHours.toFixed(1)} duty hrs)</span>
+              {approvedTotalFines} kr <span class="text-xs text-slate-400 font-normal">({approvedTotalPoints} duty pts)</span>
             </div>
           </div>
           <button
@@ -886,6 +966,15 @@
       >
         <Users class="w-4 h-4 text-teal-300" />
         <span>Team Roster ({persons.length})</span>
+      </button>
+
+      <button
+        type="button"
+        onclick={() => adminTab = "duty_leaderboard"}
+        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'duty_leaderboard' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
+      >
+        <Trophy class="w-4 h-4 text-amber-300" />
+        <span>Duty Leaderboard</span>
       </button>
 
       <button
@@ -1038,7 +1127,7 @@
           <div class="divide-y divide-slate-100">
             {#if pendingDugnad.length === 0}
               <div class="p-8 text-center text-slate-400 text-xs sm:text-sm">
-                No pending club duty hours awaiting review.
+                No pending club duty entries awaiting review.
               </div>
             {:else}
               {#each pendingDugnad as dug}
@@ -1050,12 +1139,12 @@
                         {person ? getAdminFullName(person) : dug.playerName}
                       </span>
                       <span class="text-xs font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                        {dug.hours} hrs ({dug.points} pts)
+                        {dug.points} pts
                       </span>
                       {#if dug.hadTravel}
                         <span class="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 flex items-center gap-1">
                           <Navigation class="w-3 h-3" />
-                          <span>Includes {dug.travelHours || 0}h travel (+{dug.travelPoints || 0} pts)</span>
+                          <span>Includes travel (+{dug.travelPoints || 0} pts)</span>
                         </span>
                       {/if}
                     </div>
@@ -1098,7 +1187,7 @@
                       type="button"
                       onclick={async () => {
                         await onApproveDugnad(dug.id);
-                        notify(`Approved ${dug.hours} hrs for ${dug.playerName}`);
+                        notify(`Approved ${dug.points} pts for ${dug.playerName}`);
                       }}
                       class="px-4 py-1.5 text-xs font-bold rounded-lg bg-teal-600 hover:bg-teal-500 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
                     >
@@ -1284,14 +1373,14 @@
                         type="button"
                         onclick={() => openEditPerson(p)}
                         class="hover:underline text-teal-900 hover:text-teal-700 inline-flex flex-col items-end cursor-pointer group"
-                        title="Click to edit club duty hours directly"
+                        title="Click to edit club duty points directly"
                       >
                         <span class="flex items-center gap-1 font-black">
-                          {pDugHours.toFixed(1)} hrs
+                          {pDugPoints} pts
                           <Edit3 class="w-3 h-3 text-slate-400 group-hover:text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </span>
                         <span class="text-[11px] font-normal text-slate-400">
-                          {pDugPoints} pts
+                          {pDug.length} {pDug.length === 1 ? 'godkjent' : 'godkjente'}
                         </span>
                       </button>
                     {:else}
@@ -1304,7 +1393,7 @@
                         type="button"
                         onclick={() => openEditPerson(p)}
                         class="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer flex items-center gap-1 text-xs font-semibold"
-                        title="Edit person details, fines sum & duty hours"
+                        title="Edit person details, fines sum & duty points"
                       >
                         <Edit3 class="w-3.5 h-3.5" />
                         <span class="hidden md:inline">Edit</span>
@@ -1326,6 +1415,116 @@
               {/each}
             </tbody>
           </table>
+        </div>
+      </div>
+
+    <!-- TAB: REVERSED CLUB DUTY LEADERBOARD -->
+    {:else if adminTab === "duty_leaderboard"}
+      <div class="space-y-6">
+        <div class="bg-slate-900 text-white p-5 sm:p-6 rounded-2xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 text-teal-400 text-xs font-bold uppercase tracking-wider">
+              <HeartHandshake class="w-4 h-4" />
+              <span>Admin Oversikt • Gjenstående dugnad</span>
+            </div>
+            <h3 class="text-lg sm:text-xl font-black text-white mt-1">
+              Club Duty Leaderboard (Minst dugnad først)
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Viser hvem som har gjort minst dugnad og har størst gjenstående forpliktelse.
+            </p>
+          </div>
+          <div class="bg-slate-800/90 border border-slate-700/80 px-4 py-2.5 rounded-xl text-right">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Godkjent dugnad totalt</div>
+            <div class="text-base sm:text-lg font-black text-teal-400">
+              {approvedTotalPoints} pts
+            </div>
+          </div>
+        </div>
+
+        <!-- Highlight Podiums for Least Points / Highest Obligation -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {#each adminDutyLeaderboard().slice(0, 3) as item, index}
+            {@const rankStyles = [
+              "border-rose-400 bg-rose-50/70 text-rose-950",
+              "border-amber-300 bg-amber-50/70 text-amber-950",
+              "border-slate-300 bg-slate-50 text-slate-900"
+            ]}
+            {@const rankTitles = [
+              "Størst gjenstående forpliktelse (#1)",
+              "2. minst dugnad (#2)",
+              "3. minst dugnad (#3)"
+            ]}
+            <div class="rounded-2xl border p-4 text-center shadow-xs {rankStyles[index]}">
+              <div class="text-[11px] font-bold uppercase tracking-wider mb-1 opacity-80">
+                {rankTitles[index]}
+              </div>
+              <div class="text-base sm:text-lg font-black tracking-tight mb-0.5">
+                {item.displayName}
+              </div>
+              <div class="text-xs text-slate-600 mb-2">
+                {item.person.role || "Player"} {item.person.number ? `(#${item.person.number})` : ""}
+              </div>
+              <div class="text-xl sm:text-2xl font-black">
+                {item.totalPoints} pts
+              </div>
+              <div class="text-[11px] opacity-75 mt-1">
+                {item.count} {item.count === 1 ? 'godkjent dugnad' : 'godkjente dugnader'}
+              </div>
+            </div>
+          {/each}
+        </div>
+
+        <!-- Full Duty Table -->
+        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+          <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+            <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
+              <HeartHandshake class="w-4 h-4 text-teal-400" />
+              <span>Fullstendig dugnadsliste (Reversert rangering)</span>
+            </div>
+            <span class="text-xs text-slate-400 font-medium">
+              {adminDutyLeaderboard().length} spillere
+            </span>
+          </div>
+
+          <div class="divide-y divide-slate-100">
+            {#each adminDutyLeaderboard() as item, idx}
+              <div class="p-3.5 sm:px-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                <div class="flex items-center gap-3">
+                  <span class="w-6 text-center font-bold text-xs {idx === 0 ? 'text-rose-600 font-black' : idx < 3 ? 'text-amber-600 font-black' : 'text-slate-400'}">
+                    #{idx + 1}
+                  </span>
+                  <div>
+                    <div class="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                      <span>{item.displayName}</span>
+                      {#if item.person.type === 'coach'}
+                        <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">Coach</span>
+                      {/if}
+                    </div>
+                    <div class="text-[11px] text-slate-400">
+                      {item.person.role || "Player"} {item.person.number ? `• #${item.person.number}` : ""} • {item.count} {item.count === 1 ? 'dugnad' : 'dugnader'}
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="text-right">
+                    <div class="font-black text-xs sm:text-sm text-teal-900">
+                      {item.totalPoints} pts
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onclick={() => openEditPerson(item.person)}
+                    class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer flex items-center gap-1"
+                    title="Juster poeng for {item.displayName}"
+                  >
+                    <Edit3 class="w-3 h-3" />
+                    <span class="hidden sm:inline">Juster</span>
+                  </button>
+                </div>
+              </div>
+            {/each}
+          </div>
         </div>
       </div>
 
@@ -1734,10 +1933,10 @@
           <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
             <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
               <HeartHandshake class="w-4 h-4 text-teal-400" />
-              <span>Approved Club Duty Hours ({dugnad.filter(d => d.status === 'approved').length})</span>
+              <span>Approved Club Duty ({dugnad.filter(d => d.status === 'approved').length})</span>
             </div>
             <div class="text-xs text-teal-400 font-bold">
-              Total: {approvedTotalHours.toFixed(1)} hrs
+              Total: {approvedTotalPoints} pts
             </div>
           </div>
 
@@ -1751,11 +1950,11 @@
                       {person ? getAdminFullName(person) : entry.playerName}
                     </span>
                     <span class="font-bold text-teal-800 text-xs">
-                      {entry.hours} hrs ({entry.points} pts)
+                      {entry.points} pts
                     </span>
                     {#if entry.hadTravel}
                       <span class="text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200">
-                        +{entry.travelHours || 0}h travel
+                        +{entry.travelPoints || 0} pts travel
                       </span>
                     {/if}
                   </div>
@@ -2373,6 +2572,33 @@
               </div>
             </div>
 
+            <div class="grid grid-cols-2 gap-3 items-center">
+              <div>
+                <label for="edit-fine-status" class="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                <select
+                  id="edit-fine-status"
+                  bind:value={editFineStatus}
+                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium"
+                >
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              <div class="pt-5 flex items-center gap-2">
+                <input
+                  id="edit-fine-paid"
+                  type="checkbox"
+                  bind:checked={editFinePaid}
+                  class="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <label for="edit-fine-paid" class="text-xs font-bold text-slate-700 cursor-pointer">
+                  Markert som betalt
+                </label>
+              </div>
+            </div>
+
             <div>
               <label for="edit-fine-comm" class="block text-xs font-bold text-slate-700 mb-1">Comment</label>
               <textarea
@@ -2388,6 +2614,7 @@
             <button
               type="button"
               onclick={() => editingFine = null}
+              disabled={isSavingFine}
               class="px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold cursor-pointer"
             >
               Cancel
@@ -2395,9 +2622,15 @@
             <button
               type="button"
               onclick={saveEditedFine}
-              class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+              disabled={isSavingFine}
+              class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
             >
-              Save Changes
+              {#if isSavingFine}
+                <RefreshCw class="w-3 h-3 animate-spin" />
+                <span>Lagrer...</span>
+              {:else}
+                <span>Save Changes</span>
+              {/if}
             </button>
           </div>
         </div>
@@ -2433,28 +2666,40 @@
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label for="edit-dug-hours" class="block text-xs font-bold text-slate-700 mb-1">Hours</label>
-                <input
-                  id="edit-dug-hours"
-                  type="number"
-                  step="0.5"
-                  min="0.5"
-                  bind:value={editDugnadHours}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
-                />
-              </div>
-
-              <div>
-                <label for="edit-dug-pts" class="block text-xs font-bold text-slate-700 mb-1">Points Awarded</label>
+                <label for="edit-dug-pts" class="block text-xs font-bold text-slate-700 mb-1">Points (pts)</label>
                 <input
                   id="edit-dug-pts"
                   type="number"
-                  step="0.5"
+                  step="1"
                   min="0"
                   bind:value={editDugnadPoints}
                   class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
                 />
               </div>
+
+              <div>
+                <label for="edit-dug-status" class="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                <select
+                  id="edit-dug-status"
+                  bind:value={editDugnadStatus}
+                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium"
+                >
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label for="edit-dug-activity" class="block text-xs font-bold text-slate-700 mb-1">Activity Type</label>
+              <input
+                id="edit-dug-activity"
+                type="text"
+                bind:value={editDugnadActivityType}
+                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium"
+                placeholder="e.g. Club Task, Hall Rigging, Kiosk..."
+              />
             </div>
 
             <div>
@@ -2472,6 +2717,7 @@
             <button
               type="button"
               onclick={() => editingDugnad = null}
+              disabled={isSavingDugnad}
               class="px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold cursor-pointer"
             >
               Cancel
@@ -2479,9 +2725,15 @@
             <button
               type="button"
               onclick={saveEditedDugnad}
-              class="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+              disabled={isSavingDugnad}
+              class="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
             >
-              Save Changes
+              {#if isSavingDugnad}
+                <RefreshCw class="w-3 h-3 animate-spin" />
+                <span>Lagrer...</span>
+              {:else}
+                <span>Save Changes</span>
+              {/if}
             </button>
           </div>
         </div>
@@ -2563,7 +2815,7 @@
                   Direct Leaderboards & Totals Adjustment
                 </span>
                 <span class="block text-[11px] text-slate-500 italic mt-0.5">
-                  Directly adjust this person's recorded fine total and club duty hours.
+                  Directly adjust this person's recorded fine total and club duty points.
                 </span>
               </div>
               <div class="grid grid-cols-2 gap-3 pt-1">
@@ -2587,20 +2839,20 @@
 
                 {#if editPersonType === 'player'}
                   <div>
-                    <label for="edit-p-dutyhrs" class="block text-xs font-bold text-slate-700 mb-1">
-                      Club Duty (hrs)
+                    <label for="edit-p-dutypts" class="block text-xs font-bold text-slate-700 mb-1">
+                      Club Duty (pts)
                     </label>
                     <div class="relative">
                       <input
-                        id="edit-p-dutyhrs"
+                        id="edit-p-dutypts"
                         type="number"
-                        step="0.5"
+                        step="1"
                         min="0"
-                        bind:value={editPersonDutyHours}
+                        bind:value={editPersonDutyPoints}
                         class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-bold focus:ring-2 focus:ring-teal-200"
                       />
                       <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
-                        hrs
+                        pts
                       </span>
                     </div>
                   </div>

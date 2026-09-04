@@ -725,14 +725,28 @@ export class H4ADataManager {
   }
 
   async updateFine(id: string, updates: Partial<FineReport>): Promise<void> {
+    console.log("[H4A Store] updateFine called for id:", id, "updates:", updates);
+    this.fines = this.fines.map(f => f.id === id ? { ...f, ...updates } : f);
+    this.notify();
+
     if (!this.isConfigured) {
-      this.fines = this.fines.map(f => f.id === id ? { ...f, ...updates } : f);
-      this.notify();
+      console.log("[H4A Store] Firestore not configured; updated fine locally only.");
       return;
     }
     try {
-      await updateDoc(doc(database, "fines", id), updates);
+      const cleanUpdates: Record<string, any> = {};
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === undefined || value === null) {
+          cleanUpdates[key] = deleteField();
+        } else {
+          cleanUpdates[key] = value;
+        }
+      }
+      console.log("[H4A Store] Writing fine update to Firestore: fines/" + id, cleanUpdates);
+      await setDoc(doc(database, "fines", id), cleanUpdates, { merge: true });
+      console.log("[H4A Store] Successfully updated fine in Firestore: fines/" + id);
     } catch (err) {
+      console.error("[H4A Store] updateFine failed in Firestore for fines/" + id, err);
       handleFirestoreError(err, OperationType.UPDATE, `fines/${id}`);
     }
   }
@@ -792,14 +806,28 @@ export class H4ADataManager {
   }
 
   async updateDugnad(id: string, updates: Partial<DugnadEntry>): Promise<void> {
+    console.log("[H4A Store] updateDugnad called for id:", id, "updates:", updates);
+    this.dugnad = this.dugnad.map(d => d.id === id ? { ...d, ...updates } : d);
+    this.notify();
+
     if (!this.isConfigured) {
-      this.dugnad = this.dugnad.map(d => d.id === id ? { ...d, ...updates } : d);
-      this.notify();
+      console.log("[H4A Store] Firestore not configured; updated dugnad locally only.");
       return;
     }
     try {
-      await updateDoc(doc(database, "dugnad_entries", id), updates);
+      const cleanUpdates: Record<string, any> = {};
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === undefined || value === null) {
+          cleanUpdates[key] = deleteField();
+        } else {
+          cleanUpdates[key] = value;
+        }
+      }
+      console.log("[H4A Store] Writing dugnad update to Firestore: dugnad_entries/" + id, cleanUpdates);
+      await setDoc(doc(database, "dugnad_entries", id), cleanUpdates, { merge: true });
+      console.log("[H4A Store] Successfully updated dugnad in Firestore: dugnad_entries/" + id);
     } catch (err) {
+      console.error("[H4A Store] updateDugnad failed in Firestore for dugnad_entries/" + id, err);
       handleFirestoreError(err, OperationType.UPDATE, `dugnad_entries/${id}`);
     }
   }
