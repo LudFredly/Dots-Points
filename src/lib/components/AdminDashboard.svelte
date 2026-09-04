@@ -153,10 +153,7 @@
 
   // Interactive Firebase Auth Login State (for Firestore write privileges without hardcoded passwords)
   let isFirebaseAuthModalOpen = $state(false);
-  let firebaseAdminEmail = $state(
-    (import.meta.env.VITE_ADMIN_EMAIL || "").trim() ||
-    (h4aStore.currentUser?.email || "")
-  );
+  let firebaseAdminEmail = $state(h4aStore.currentUser?.email || "");
   let firebaseAdminPassword = $state("");
   let firebaseAuthError = $state("");
   let isFirebaseSigningIn = $state(false);
