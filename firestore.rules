@@ -1,45 +1,9 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128;
-    }
-
-    // --- Team Roster (Players & Coaches) ---
-    match /persons/{personId} {
-      allow read, write: if isValidId(personId);
-    }
-
-    // --- Fine Rules Catalog ---
-    match /fine_rules/{ruleId} {
-      allow read, write: if isValidId(ruleId);
-    }
-
-    // --- Dugnad Activity Types & Rates ---
-    match /dugnad_activities/{activityId} {
-      allow read, write: if isValidId(activityId);
-    }
-
-    // --- Team Global Settings ---
-    match /settings/{settingId} {
-      allow read, write: if isValidId(settingId);
-    }
-
-    // --- Fine Reports ---
-    match /fines/{fineId} {
-      allow read, write: if isValidId(fineId);
-    }
-
-    // --- Dugnad / Volunteer Duty Entries ---
-    match /dugnad_entries/{dugnadId} {
-      allow read, write: if isValidId(dugnadId);
-    }
-
-    // Default deny all other paths
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
   }
 }
-
