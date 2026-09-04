@@ -13,7 +13,6 @@ import { database, isFirebaseConfigured, handleFirestoreError, OperationType } f
 import {
   collection,
   doc,
-  getDoc,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -23,139 +22,256 @@ import {
 } from "firebase/firestore";
 
 export const DEFAULT_PERSONS: Person[] = [
-  { id: "p1", firstName: "Henrik", lastName: "Karlsen", number: 4, role: "Setter (Captain)", type: "player", active: true },
-  { id: "p2", firstName: "Sander", lastName: "Tveit", number: 7, role: "Outside Hitter", type: "player", active: true },
-  { id: "p3", firstName: "Magnus", lastName: "Bakke", number: 9, role: "Middle Blocker", type: "player", active: true },
-  { id: "p4", firstName: "Tobias", lastName: "Solberg", number: 11, role: "Outside Hitter", type: "player", active: true },
-  { id: "p5", firstName: "Jonas", lastName: "Lie", number: 13, role: "Opposite", type: "player", active: true },
-  { id: "p6", firstName: "Elias", lastName: "Hansen", number: 1, role: "Libero", type: "player", active: true },
-  { id: "p7", firstName: "Mathias", lastName: "Olsen", number: 5, role: "Middle Blocker", type: "player", active: true },
-  { id: "p8", firstName: "Fredrik", lastName: "Moen", number: 8, role: "Outside Hitter", type: "player", active: true },
-  { id: "p9", firstName: "Oliver", lastName: "Larsen", number: 10, role: "Setter", type: "player", active: true },
-  { id: "p10", firstName: "Simen", lastName: "Berg", number: 12, role: "Opposite", type: "player", active: true },
-  { id: "p11", firstName: "Kristian", lastName: "Aas", number: 6, role: "All-Rounder", type: "player", active: true },
-  { id: "p12", firstName: "Henrik", lastName: "Holm", number: 14, role: "Middle Blocker", type: "player", active: true },
-  { id: "c1", firstName: "Martin", lastName: "Eriksen", number: undefined, role: "Head Coach", type: "coach", active: true },
-  { id: "c2", firstName: "Tor", lastName: "Amundsen", number: undefined, role: "Assistant Coach", type: "coach", active: true }
+  { id: "p1", firstName: "Erik", lastName: "Myhrum", number: undefined, role: "Middle", type: "player", active: true },
+  { id: "p2", firstName: "Erlend", lastName: "Langeggen", number: undefined, role: "Middle", type: "player", active: true },
+  { id: "p3", firstName: "Ethan", lastName: "Bestele", number: undefined, role: "Middle", type: "player", active: true },
+  { id: "p4", firstName: "Jonas", lastName: "Einvik Smehaug", number: undefined, role: "Opposite", type: "player", active: true },
+  { id: "p5", firstName: "Jonas", lastName: "Sunde Kobberdal", number: undefined, role: "Libero", type: "player", active: true },
+  { id: "p6", firstName: "Ludvig", lastName: "Vilmar Fredly", number: 4, role: "Outside", type: "player", active: true },
+  { id: "p7", firstName: "Marius", lastName: "Lindløkken", number: undefined, role: "Setter", type: "player", active: true },
+  { id: "p8", firstName: "Markus", lastName: "Sørland", number: undefined, role: "Potato", type: "player", active: true },
+  { id: "p9", firstName: "Markus", lastName: "Veblungsnes", number: undefined, role: "Opposite", type: "player", active: true },
+  { id: "p10", firstName: "Mikael", lastName: "Bergmester", number: undefined, role: "Libero", type: "player", active: true },
+  { id: "p11", firstName: "Olav", lastName: "Kvåle Gissinger", number: undefined, role: "Potato", type: "player", active: true },
+  { id: "p12", firstName: "Sabri", lastName: "Rebaine", number: undefined, role: "Outside", type: "player", active: true },
+  { id: "p13", firstName: "Sondre", lastName: "Vikene", number: undefined, role: "Outside", type: "player", active: true },
+  { id: "p14", firstName: "Thomas", lastName: "Hanstad", number: undefined, role: "Outside", type: "player", active: true },
+  { id: "p15", firstName: "Trond", lastName: "Juvkam", number: undefined, role: "Setter", type: "player", active: true },
+  { id: "p16", firstName: "Vegard", lastName: "Lauritsen", number: undefined, role: "Middle", type: "player", active: true },
+  { id: "c1", firstName: "Andrea", lastName: "Jamne", number: undefined, role: "Coach", type: "coach", active: true },
+  { id: "c2", firstName: "Erle", lastName: "Letnes Levorsen", number: undefined, role: "Coach", type: "coach", active: true }
 ];
 
 export const DEFAULT_FINE_RULES: FineRule[] = [
   {
     id: "r1",
-    title: "Service into net on set point / 0-0",
-    fine: 20,
-    fineMatch: 20,
-    category: "Match",
-    description: "Missed serve directly into the net after a timeout or on score 24-XX"
+    title: "No Spond response by midnight",
+    fineSocial: 25,
+    description: "Not responding on Spond by midnight the day before the event"
   },
   {
     id: "r2",
-    title: "Losing warm-up drill / last in sprints",
-    fine: 20,
-    finePractice: 20,
-    category: "Practice",
-    description: "Dropping an easy reception ball or finishing last in team conditioning sprints"
+    title: "Late to practice without notice",
+    finePractice: 25,
+    description: "Arriving late to practice without notifying anyone in advance. Notice must be given at least one hour before the practice starts."
   },
   {
     id: "r3",
-    title: "Net touch on decisive ball",
-    fine: 30,
-    fineMatch: 30,
-    category: "Match",
-    description: "Touching the net on a set point, match point, or unforced situation"
+    title: "Late to match without notice",
+    fineMatch: 25,
+    description: "Arriving late to a match without notifying anyone in advance. Notice must be given at least one hour before the match. Remember to write how late the player was."
   },
   {
     id: "r4",
-    title: "Water bottle / tape left in gym",
-    fine: 30,
-    fineMatch: 30,
-    finePractice: 30,
-    category: "Equipment & Facility",
-    description: "Leaving bottles, tape, or training gear behind on the court after practice or match"
+    title: "No-show",
+    finePractice: 75,
+    description: "Not showing up to practice after saying that you would attend."
   },
   {
     id: "r5",
-    title: "Phone ringing / buzzing during tactical briefing",
-    fine: 40,
-    fineMatch: 40,
-    finePractice: 40,
-    fineSocial: 40,
-    category: "Social & Conduct",
-    description: "Phone makes noise in the locker room or during tactical timeout"
+    title: "No-show",
+    fineMatch: 150,
+    description: "Not showing up to a match after saying that you would attend."
   },
   {
     id: "r6",
-    title: "Dirty or black-soled shoes marking the court",
-    fine: 40,
-    fineMatch: 40,
-    finePractice: 40,
-    category: "Equipment & Facility",
-    description: "Using outdoor footwear or shoes leaving black scuff marks on the court"
+    title: "Forgetting team equipment",
+    fineMatch: 50,
+    finePractice: 50,
+    description: "Forgetting necessary team/club equipment, such as balls for Spektrum-practice or the match sheet for home matches."
   },
   {
     id: "r7",
-    title: "Late for warm-up / team call-up",
-    fine: 50,
+    title: "Losing or damaging equipment",
     fineMatch: 50,
     finePractice: 50,
-    category: "Practice",
-    description: "Arriving late to the gym or scheduled team meeting"
+    description: "Losing or damaging team/club equipment, such as a NTNUI-jersey, the net, a ball, etc."
   },
   {
     id: "r8",
-    title: "Forgot jersey / knee pads / match kit",
-    fine: 50,
-    fineMatch: 50,
-    finePractice: 50,
-    category: "Equipment & Facility",
-    description: "Missing match jersey, shorts, kneepads, or designated team gear"
+    title: "Incorrect match attire",
+    fineMatch: 25,
+    description: "Not wearing the correct match attire. Black shorts and white tennis socks are required."
   },
   {
     id: "r9",
-    title: "Custom / Special fine",
-    fine: 50,
-    fineMatch: 50,
-    finePractice: 50,
-    fineSocial: 50,
-    category: "Other",
-    description: "Ad-hoc penalty established by the team leadership or captain"
+    title: "Forgetfulness",
+    fineMatch: 10,
+    finePractice: 10,
+    fineSocial: 10,
+    description: "Forgetting personal or necessary items."
   },
   {
     id: "r10",
-    title: "Yellow / Red card from referee",
-    fine: 100,
-    fineMatch: 100,
-    category: "Match",
-    description: "Unsportsmanlike conduct, arguing with officials, or penalty cards"
+    title: "Unnecessary phone use",
+    fineMatch: 25,
+    finePractice: 25,
+    fineSocial: 25,
+    description: "Unnecessary use of a mobile phone during meetings, matches, or practices"
   },
   {
     id: "r11",
-    title: "Birthday cake fine (missing birthday treats)",
-    fine: 100,
-    finePractice: 100,
-    fineSocial: 100,
-    category: "Social & Conduct",
-    description: "Had a birthday recently without bringing cake or treats to the next practice"
+    title: "KASSE!",
+    finePractice: 10,
+    description: "Serving under the net during practice or warm-up before a match. This does not apply during dedicated serve practice, before practice starts, or after practice ends."
   },
   {
     id: "r12",
-    title: "Absence without 24h prior notification",
-    fine: 100,
+    title: "KASSEEE!!!",
     fineMatch: 100,
-    finePractice: 100,
-    category: "Practice",
-    description: "Late cancellation or unannounced absence on match or practice day"
+    description: "Serving under the net during a match"
+  },
+  {
+    id: "r13",
+    title: "Wasting food",
+    fineSocial: 10,
+    description: "Not finishing your food when eating together with the team"
+  },
+  {                                 
+    id: "r14",
+    title: "Spilling a drink",
+    fineMatch: 10,
+    finePractice: 10,
+    fineSocial: 10,
+    description: "Spilling a drink during practice, a match, a party, or another team activity"
+  },
+  {
+    id: "r15",
+    title: "Yellow card",
+    fineMatch: 50,
+    description: "Receiving a yellow card, or doing something that obviously deserves a yellow card"
+  },
+  {
+    id: "r16",
+    title: "Red card",
+    fineMatch: 100,
+    description: "Receiving a red card, or more severe sanctions"
+  },
+  {
+    id: "r17",
+    title: "PikkPrikk",
+    fineMatch: 25,
+    finePractice: 25,
+    fineSocial: 25,
+    description: "Don't act like a dick"
+  },
+  {
+    id: "r18",
+    title: "General Incompetence",
+    fineMatch: 10,
+    finePractice: 10,
+    fineSocial: 10,
+    description: "Saying or doing something stupid or obviously idiotic"
+  },
+  {
+    id: "r19",
+    title: "Late Important Response",
+    fineMatch: 10,
+    finePractice: 10,
+    fineSocial: 10,
+    description: "Having to be reminded to respond to an important message. The fine doubles for each reminder: NOK 10 → NOK 20 → NOK 40 → NOK 80, etc."
+  },
+  {
+    id: "r20",
+    title: "Not attending team party",
+    fineSocial: 25,
+    description: "Not attending a team party without giving notice in advance (booooo)"
+  },
+  {
+    id: "r21",
+    title: "F**tefine",
+    fineMatch: 50,
+    finePractice: 50,
+    fineSocial: 50,
+    description: "Markus V. swears"
   }
 ];
 
 export const DEFAULT_DUGNAD_ACTIVITIES: DugnadActivity[] = [
-  { id: "d1", title: "Concession stand / Kiosk shift", defaultHours: 3, pointsPerHour: 10 },
-  { id: "d2", title: "Scorekeeper / Digital scoresheet", defaultHours: 2, pointsPerHour: 12 },
-  { id: "d3", title: "Referee / Line judge duty", defaultHours: 2, pointsPerHour: 15 },
-  { id: "d4", title: "Raffle / merchandise sales", defaultHours: 4, pointsPerHour: 10 },
-  { id: "d5", title: "Court set-up & net take-down", defaultHours: 1.5, pointsPerHour: 10 },
-  { id: "d6", title: "Team driver for away match", defaultHours: 3, pointsPerHour: 15 },
-  { id: "d7", title: "Other club duty", defaultHours: 2, pointsPerHour: 10 }
+  {
+    id: "d1",
+    title: "1st referee",
+    defaultHours: 1,
+    pointsPer: 15,
+    pointsType: "perHour"
+  },
+  {
+    id: "d2",
+    title: "2nd referee",
+    defaultHours: 1,
+    pointsPer: 12,
+    pointsType: "perHour"
+  },
+  {
+    id: "d3",
+    title: "Line judge / secretary",
+    defaultHours: 1,
+    pointsPer: 8,
+    pointsType: "perHour"
+  },
+  {
+    id: "d4",
+    title: "Floor duty",
+    defaultHours: 1,
+    pointsPer: 5,
+    pointsType: "perHour"
+  },
+  {
+    id: "d5",
+    title: "Work in the kiosk",
+    defaultHours: 1,
+    pointsPer: 5,
+    pointsType: "perHour"
+  },
+  {
+    id: "d6",
+    title: "Travel specifically for duty",
+    defaultHours: 1,
+    pointsPer: 5,
+    pointsType: "perHour"
+  },
+  {
+    id: "d7",
+    title: "Host social event",
+    defaultHours: 0,
+    pointsPer: 15,
+    pointsType: "fixed"
+  },
+  {
+    id: "d8",
+    title: "Organize social event",
+    defaultHours: 0,
+    pointsPer: 15,
+    pointsType: "fixed"
+  },
+  {
+    id: "d9",
+    title: "Bring AND return balls to practice/match",
+    defaultHours: 0,
+    pointsPer: 8,
+    pointsType: "fixed"
+  },
+  {
+    id: "d10",
+    title: "Wash NTNUI uniforms for the team",
+    defaultHours: 0,
+    pointsPer: 5,
+    pointsType: "fixed"
+  },
+  {
+    id: "d11",
+    title: "Bake cake for kiosk",
+    defaultHours: 0,
+    pointsPer: 5,
+    pointsType: "fixed"
+  },
+  {
+    id: "d12",
+    title: "Designated driver",
+    defaultHours: 1,
+    pointsPer: 10,
+    pointsType: "perHour"
+  }
 ];
 
 export const DEFAULT_SETTINGS: TeamSettings = {
@@ -202,9 +318,6 @@ export class H4ADataManager {
   dugnad: DugnadEntry[] = [];
   dugnadActivities: DugnadActivity[] = [];
   settings: TeamSettings = DEFAULT_SETTINGS;
-
-  currentUser: User | null = null;
-  isAdminAuthenticated: boolean = false;
   isConfigured: boolean = isFirebaseConfigured;
   connectionError: string | null = null;
   isLoading: boolean = true;
@@ -274,7 +387,9 @@ export class H4ADataManager {
 
   checkAdminAccess(explicitKey?: string): boolean {
     if (!this.expectedAdminAccessKey) {
-      return this.isAdminAccessGranted || this.isAdminAuthenticated;
+      this.isAdminAccessGranted = true;
+      this.isAccessGranted = true;
+      return true;
     }
 
     if (typeof window !== "undefined") {
@@ -378,50 +493,9 @@ export class H4ADataManager {
       return;
     }
 
-    // Auth State Listener with strict server-side administrator verification
-    onAuthStateChanged(auth, async (user) => {
-      this.currentUser = user;
-      if (user) {
-        this.isAdminAuthenticated = await this.verifyAdminPrivileges(user);
-        if (this.isAdminAuthenticated) {
-          this.isAccessGranted = true;
-        }
-      } else {
-        this.isAdminAuthenticated = false;
-      }
-      this.notify();
-    });
-
-    // Start Real-Time Firestore Listeners for authoritative shared state
+    // Start Real-Time Firestore Listeners for authoritative shared state.
+    // Access is controlled by the team/admin URL key in the frontend.
     this.startListeners();
-  }
-
-  /**
-   * Authoritative Admin Verification:
-   * Checks custom auth claims (admin: true / role: admin) OR doc in /admins/{uid}.
-   */
-  async verifyAdminPrivileges(user: User): Promise<boolean> {
-    try {
-      // 1. Check custom claims
-      const tokenResult = await user.getIdTokenResult();
-      if (tokenResult.claims.admin === true || tokenResult.claims.role === "admin") {
-        return true;
-      }
-
-      // 2. Check /admins/{uid} doc
-      const adminDoc = await getDoc(doc(database, "admins", user.uid));
-      if (adminDoc.exists()) {
-        const data = adminDoc.data();
-        if (data.role === "admin" || data.role === "superadmin" || data.active !== false) {
-          return true;
-        }
-      }
-
-      return false;
-    } catch (err) {
-      console.warn("Could not verify administrator privileges:", err);
-      return false;
-    }
   }
 
   private startListeners() {
@@ -592,7 +666,7 @@ export class H4ADataManager {
     }
   }
 
-  // --- Auth Operations ---
+  // --- Access Key Operations ---
 
   async loginWithAdminKey(adminKey: string): Promise<void> {
     const cleanKey = adminKey.trim();
@@ -613,42 +687,7 @@ export class H4ADataManager {
     }
   }
 
-  async loginAdmin(email: string, password: string): Promise<void> {
-    if (!this.isConfigured) {
-      this.isAdminAuthenticated = true;
-      this.isAdminAccessGranted = true;
-      this.isAccessGranted = true;
-      this.notify();
-      return;
-    }
-    const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-    const hasPrivileges = await this.verifyAdminPrivileges(cred.user);
-    if (!hasPrivileges) {
-      await signOut(auth);
-      this.currentUser = null;
-      this.isAdminAuthenticated = false;
-      this.notify();
-      throw new Error(
-        `Kontoen (${cred.user.email}) mangler administratorrettigheter i Firestore. Legg til dokument /admins/${cred.user.uid} med { role: "admin" } i Firestore.`
-      );
-    }
-    this.currentUser = cred.user;
-    this.isAdminAuthenticated = true;
-    this.isAdminAccessGranted = true;
-    this.isAccessGranted = true;
-    this.notify();
-  }
-
   async logoutAdmin(): Promise<void> {
-    if (this.isConfigured) {
-      try {
-        await signOut(auth);
-      } catch (err) {
-        console.warn("Sign out error:", err);
-      }
-    }
-    this.currentUser = null;
-    this.isAdminAuthenticated = false;
     this.revokeAdminAccess();
     this.notify();
   }
@@ -1156,9 +1195,6 @@ export class H4ADataManager {
       this.dugnad = [];
       this.notify();
       return;
-    }
-    if (!this.isAdminAuthenticated) {
-      throw new Error("Admin authentication required to reset database data.");
     }
     const batch = writeBatch(database);
 

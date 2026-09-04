@@ -8,12 +8,12 @@
   let { children } = $props();
 
   let isAccessGranted = $state(h4aStore.isAccessGranted);
-  let isAdminAuthenticated = $state(h4aStore.isAdminAuthenticated);
+  let isAdminAccessGranted = $state(h4aStore.isAdminAccessGranted);
   let hasAccessKeyConfigured = $state(Boolean(h4aStore.expectedAccessKey));
 
   function syncAccess() {
     isAccessGranted = h4aStore.isAccessGranted;
-    isAdminAuthenticated = h4aStore.isAdminAuthenticated;
+    isAdminAccessGranted = h4aStore.isAdminAccessGranted;
     hasAccessKeyConfigured = Boolean(h4aStore.expectedAccessKey);
   }
 
@@ -27,7 +27,7 @@
   });
 
   const isAdminRoute = $derived(page?.url?.pathname?.startsWith("/admin") ?? false);
-  const canViewContent = $derived(!hasAccessKeyConfigured || isAccessGranted || isAdminAuthenticated || isAdminRoute);
+  const canViewContent = $derived(!hasAccessKeyConfigured || isAccessGranted || isAdminAccessGranted || isAdminRoute);
 </script>
 
 <svelte:head>

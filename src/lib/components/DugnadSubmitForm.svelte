@@ -52,7 +52,11 @@
   );
 
   const dutyPoints = $derived(
-    Number((hours * (activeActivityObj?.pointsPerHour || 10)).toFixed(1))
+    activeActivityObj
+      ? activeActivityObj.pointsType === "fixed"
+        ? activeActivityObj.pointsPer
+        : Number((hours * activeActivityObj.pointsPer).toFixed(1))
+      : 0
   );
 
   const travelPoints = $derived(
@@ -251,7 +255,7 @@
             </div>
 
             <div class="shrink-0 text-xs font-semibold px-2 py-1 rounded-md border {isSelected ? 'bg-teal-700 text-white border-teal-800' : 'bg-slate-100 text-slate-700 border-slate-200'}">
-              {act.pointsPerHour} pts/hr
+              {act.pointsPer} pts/hr
             </div>
           </button>
         {/each}
@@ -302,7 +306,7 @@
           </div>
           <div class="h-10 px-3 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-between text-teal-950 font-black text-sm">
             <span>{dutyPoints}</span>
-            <span class="text-xs font-medium text-teal-800">points ({activeActivityObj?.pointsPerHour || 10} pts/hr)</span>
+            <span class="text-xs font-medium text-teal-800">points ({activeActivityObj?.pointsPer || 10} pts/hr)</span>
           </div>
         </div>
       </div>

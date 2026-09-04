@@ -103,10 +103,9 @@
     onExitAdmin?: () => void;
   } = $props();
 
-  // Admin Authorization State (VITE_ADMIN_ACCESS_KEY or authenticated)
+  // Admin Authorization State (URL admin access key only)
   let isUnlocked = $derived(
     h4aStore.isAdminAccessGranted ||
-    h4aStore.isAdminAuthenticated ||
     !h4aStore.expectedAdminAccessKey
   );
   let adminKeyInput = $state("");
@@ -149,49 +148,6 @@
     } catch (err: any) {
       console.error("Sign out error:", err);
       onExitAdmin?.();
-    }
-  }
-
-  // Interactive Firebase Auth Login State (for Firestore write privileges without hardcoded passwords)
-  let isFirebaseAuthModalOpen = $state(false);
-  let firebaseAdminEmail = $state(h4aStore.currentUser?.email || "");
-  let firebaseAdminPassword = $state("");
-  let firebaseAuthError = $state("");
-  let isFirebaseSigningIn = $state(false);
-  let showFirebasePassword = $state(false);
-
-  function ensureFirebaseAuth(): boolean {
-    if (h4aStore.isConfigured && !h4aStore.isAdminAuthenticated) {
-      isFirebaseAuthModalOpen = true;
-      notify("Vennligst logg inn med din Firebase Admin-konto for å utføre skrivinger til Firestore.", "error");
-      return false;
-    }
-    return true;
-  }
-
-  async function handleFirebaseAuthSubmit(e: SubmitEvent) {
-    e.preventDefault();
-    firebaseAuthError = "";
-    isFirebaseSigningIn = true;
-    try {
-      await h4aStore.loginAdmin(firebaseAdminEmail, firebaseAdminPassword);
-      firebaseAdminPassword = "";
-      isFirebaseAuthModalOpen = false;
-      notify("Autentisert! Full skrivetilgang til Firestore er nå aktiv.");
-    } catch (err: any) {
-      console.error("Firebase auth login error:", err);
-      firebaseAuthError = err?.message || "Kunne ikke logge inn på Firebase Authentication.";
-    } finally {
-      isFirebaseSigningIn = false;
-    }
-  }
-
-  async function handleFirebaseSignOut() {
-    try {
-      await h4aStore.logoutAdmin();
-      notify("Logget ut av Firebase Admin-konto.");
-    } catch (err: any) {
-      console.error("Sign out error:", err);
     }
   }
 
@@ -269,7 +225,6 @@
   }
 
   async function executeImport() {
-    if (!ensureFirebaseAuth()) return;
     if (!pendingBackup) return;
     if (importMode === "replace" && replaceConfirmation.trim().toUpperCase() !== "ERSTATT") {
       notify("Vennligst skriv 'ERSTATT' for å bekrefte full overskriving.", "error");
@@ -338,17 +293,15 @@
   const dutyEligiblePersons = $derived(() => {
     const approvedDugnad = dugnad.filter(d => d.status === "approved");
     return persons.filter(p => {
+      // Explicitly exempt players are excluded from the reversed leaderboard.
+      if (p.exemptFromDutyReverse) return false;
       // Regular players are always eligible
       if (p.type === "player") return true;
       // Admin is included as player if admin has person data & dugnad points/records in the dataset
       const hasDugnadPoints = approvedDugnad.some(d => d.playerId === p.id && (d.points || 0) > 0);
       const hasDugnadRecord = dugnad.some(d => d.playerId === p.id);
       const isAdminRole = (p.role && p.role.toLowerCase().includes("admin")) || (p.firstName && p.firstName.toLowerCase().includes("admin"));
-      const isCurrentAdmin = h4aStore.currentUser?.email && (
-        p.firstName.toLowerCase().includes("admin") ||
-        (h4aStore.currentUser.email.split("@")[0].toLowerCase().includes(p.firstName.toLowerCase()))
-      );
-      return hasDugnadPoints || hasDugnadRecord || isAdminRole || isCurrentAdmin;
+      return hasDugnadPoints || hasDugnadRecord || isAdminRole;
     });
   });
 
@@ -418,6 +371,7 @@
   let editPersonNumber = $state<number | undefined>(undefined);
   let editPersonFineSum = $state<number>(0);
   let editPersonDutyPoints = $state<number>(0);
+  let editPersonExemptFromDutyReverse = $state<boolean>(false);
 
   // Edit Rule Modal - occasion rates mandatory
   let editingRule = $state<FineRule | null>(null);
@@ -431,12 +385,14 @@
   let isAddDugnadActivityOpen = $state(false);
   let newDugnadActTitle = $state("");
   let newDugnadActDefaultHours = $state<number>(2.0);
-  let newDugnadActPointsPerHour = $state<number>(10);
+  let newDugnadActpointsPer = $state<number>(10);
+  let newDugnadActPointsType = $state<"perHour" | "fixed">("perHour");
 
   let editingDugnadActivity = $state<DugnadActivity | null>(null);
   let editDugnadActTitle = $state("");
   let editDugnadActDefaultHours = $state<number>(2.0);
-  let editDugnadActPointsPerHour = $state<number>(10);
+  let editDugnadActpointsPer = $state<number>(10);
+  let editDugnadActPointsType = $state<"perHour" | "fixed">("perHour");
 
   // Helper to safely parse occasion fine overrides
   function parseRate(val: any): number | undefined {
@@ -462,7 +418,6 @@
   }
 
   async function saveEditedFine() {
-    if (!ensureFirebaseAuth()) return;
     if (!editingFine) return;
 
     isSavingFine = true;
@@ -500,7 +455,6 @@
   }
 
   async function saveEditedDugnad() {
-    if (!ensureFirebaseAuth()) return;
     if (!editingDugnad) return;
 
     isSavingDugnad = true;
@@ -546,12 +500,12 @@
 
     const pDug = dugnad.filter(d => d.playerId === person.id && d.status === 'approved');
     editPersonDutyPoints = pDug.reduce((sum, d) => sum + (d.points || 0), 0);
+    editPersonExemptFromDutyReverse = Boolean(person.exemptFromDutyReverse);
   }
 
   let isSavingPerson = $state(false);
 
   async function saveEditedPerson() {
-    if (!ensureFirebaseAuth()) return;
     if (!editingPerson || !editPersonFirstName.trim()) return;
 
     isSavingPerson = true;
@@ -572,7 +526,8 @@
         lastName: editPersonLastName.trim(),
         type: editPersonType,
         role: editPersonRole.trim(),
-        number: numVal
+        number: numVal,
+        exemptFromDutyReverse: editPersonExemptFromDutyReverse
       });
 
       const targetFine = Number(editPersonFineSum) || 0;
@@ -597,7 +552,6 @@
 
   function handleAddPersonSubmit(e: SubmitEvent) {
     e.preventDefault();
-    if (!ensureFirebaseAuth()) return;
     if (!newPersonFirstName.trim()) return;
 
     onAddPerson(
@@ -639,7 +593,6 @@
 
     const fallbackRate = matchVal || practiceVal || socialVal || 50;
 
-    if (!ensureFirebaseAuth()) return;
 
     onUpdateFineRule(editingRule.id, {
       title: editRuleTitle.trim(),
@@ -656,7 +609,6 @@
 
   function handleAddRuleSubmit(e: SubmitEvent) {
     e.preventDefault();
-    if (!ensureFirebaseAuth()) return;
     if (!newRuleTitle.trim()) return;
 
     const matchVal = parseRate(newRuleFineMatch);
@@ -693,35 +645,37 @@
     editingDugnadActivity = act;
     editDugnadActTitle = act.title;
     editDugnadActDefaultHours = act.defaultHours;
-    editDugnadActPointsPerHour = act.pointsPerHour;
+    editDugnadActpointsPer = act.pointsPer;
+    editDugnadActPointsType = act.pointsType;
   }
 
   function handleAddDugnadActivitySubmit(e: SubmitEvent) {
     e.preventDefault();
-    if (!ensureFirebaseAuth()) return;
     if (!newDugnadActTitle.trim()) return;
 
     onAddDugnadActivity?.({
       title: newDugnadActTitle.trim(),
-      defaultHours: Number(newDugnadActDefaultHours) || 1,
-      pointsPerHour: Number(newDugnadActPointsPerHour) || 10
+      defaultHours: newDugnadActPointsType === "fixed" ? 0 : (Number(newDugnadActDefaultHours) || 1),
+      pointsPer: Number(newDugnadActpointsPer) || 10,
+      pointsType: newDugnadActPointsType
     });
 
     notify(`Added duty activity "${newDugnadActTitle.trim()}"`);
     newDugnadActTitle = "";
     newDugnadActDefaultHours = 2.0;
-    newDugnadActPointsPerHour = 10;
+    newDugnadActpointsPer = 10;
+    newDugnadActPointsType = "perHour";
     isAddDugnadActivityOpen = false;
   }
 
   function saveEditedDugnadActivity() {
-    if (!ensureFirebaseAuth()) return;
     if (!editingDugnadActivity || !editDugnadActTitle.trim()) return;
 
     onUpdateDugnadActivity?.(editingDugnadActivity.id, {
       title: editDugnadActTitle.trim(),
-      defaultHours: Number(editDugnadActDefaultHours) || 1,
-      pointsPerHour: Number(editDugnadActPointsPerHour) || 10
+      defaultHours: editDugnadActPointsType === "fixed" ? 0 : (Number(editDugnadActDefaultHours) || 1),
+      pointsPer: Number(editDugnadActpointsPer) || 10,
+      pointsType: editDugnadActPointsType
     });
 
     notify(`Updated activity rate for "${editDugnadActTitle.trim()}"`);
@@ -729,7 +683,6 @@
   }
 
   function toggleFinePotPublication() {
-    if (!ensureFirebaseAuth()) return;
     onUpdateSettings({
       finePotPublished: !settings.finePotPublished
     });
@@ -855,22 +808,10 @@
         <div class="text-xs text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
           <span class="text-emerald-400 font-medium">Adgang godkjent via admin-nøkkel</span>
           {#if h4aStore.isConfigured}
-            {#if h4aStore.isAdminAuthenticated}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700 text-[11px] font-semibold">
-                <ShieldCheck class="w-3 h-3 text-emerald-400" />
-                <span>Firestore-skriving aktiv ({h4aStore.currentUser?.email || 'admin'})</span>
-              </span>
-            {:else}
-              <button
-                type="button"
-                onclick={() => isFirebaseAuthModalOpen = true}
-                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-950 hover:bg-amber-900 text-amber-300 border border-amber-600 text-[11px] font-semibold transition-all cursor-pointer"
-                title="Klikk for å logge inn på Firebase Auth og aktivere Firestore-skrivetilgang"
-              >
-                <AlertTriangle class="w-3 h-3 text-amber-400" />
-                <span>Logg inn for Firestore-skrivetilgang</span>
-              </button>
-            {/if}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700 text-[11px] font-semibold">
+              <ShieldCheck class="w-3 h-3 text-emerald-400" />
+              <span>Firestore-skriving aktiv</span>
+            </span>
           {/if}
         </div>
       </div>
@@ -895,18 +836,6 @@
           </button>
         </div>
 
-        {#if h4aStore.isConfigured && h4aStore.isAdminAuthenticated}
-          <button
-            type="button"
-            onclick={handleFirebaseSignOut}
-            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
-            title="Logg ut av Firebase Auth (behold nøkkeltilgang)"
-          >
-            <KeyRound class="w-3.5 h-3.5 text-emerald-400" />
-            <span>Avslutt DB-sesjon</span>
-          </button>
-        {/if}
-
         <!-- Exit / Sign Out Admin Button -->
         <button
           type="button"
@@ -919,29 +848,6 @@
         </button>
       </div>
     </div>
-
-    <!-- Notification Banner if Firestore Write Access is Not Yet Activated -->
-    {#if h4aStore.isConfigured && !h4aStore.isAdminAuthenticated}
-      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-900 shadow-xs">
-        <div class="space-y-1">
-          <div class="flex items-center gap-2 font-bold text-sm text-amber-950">
-            <KeyRound class="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Skrivetilgang til Firestore krever Firebase Authentication</span>
-          </div>
-          <p class="text-xs text-amber-800 leading-relaxed max-w-2xl">
-            Konsollet er åpnet med din <span class="font-mono font-semibold">ADMIN_ACCESS_KEY</span>. For å utføre skrivinger til Firestore (godkjenne/avvise bøter, endre spillere, lagre regler eller importere backup), må du logge inn med din Firebase Administrator-konto. Sesjonen lagres sikkert i nettleseren.
-          </p>
-        </div>
-        <button
-          type="button"
-          onclick={() => isFirebaseAuthModalOpen = true}
-          class="px-4 py-2 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-bold rounded-xl text-xs transition-all shadow-xs shrink-0 cursor-pointer flex items-center gap-1.5"
-        >
-          <Unlock class="w-3.5 h-3.5" />
-          <span>Koble til Firebase Auth</span>
-        </button>
-      </div>
-    {/if}
 
     <!-- Admin Navigation Tabs -->
     <div class="bg-slate-900 p-1.5 rounded-2xl shadow-sm border border-slate-800 flex items-center gap-1 overflow-x-auto text-xs sm:text-sm font-bold">
@@ -1763,7 +1669,7 @@
                 </button>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
+              <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs sm:text-sm">
                 <div class="sm:col-span-2">
                   <label for="new-act-title" class="block text-xs font-bold text-slate-700 mb-1">Activity Title *</label>
                   <input
@@ -1777,7 +1683,19 @@
                 </div>
 
                 <div>
-                  <label for="new-act-hours" class="block text-xs font-bold text-slate-700 mb-1">Standard Duration (Hours) *</label>
+                  <label for="new-act-type" class="block text-xs font-bold text-slate-700 mb-1">Point Type *</label>
+                  <select
+                    id="new-act-type"
+                    bind:value={newDugnadActPointsType}
+                    class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-teal-200 font-medium"
+                  >
+                    <option value="perHour">Per hour</option>
+                    <option value="fixed">Fixed amount</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label for="new-act-hours" class="block text-xs font-bold text-slate-700 mb-1">Standard Duration (Hours)</label>
                   <input
                     id="new-act-hours"
                     type="number"
@@ -1785,19 +1703,19 @@
                     min="0.5"
                     max="24"
                     bind:value={newDugnadActDefaultHours}
-                    required
+                    disabled={newDugnadActPointsType === "fixed"}
                     class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-teal-200 font-medium"
                   />
                 </div>
 
                 <div>
-                  <label for="new-act-rate" class="block text-xs font-bold text-slate-700 mb-1">Points Rate (pts/hr) *</label>
+                  <label for="new-act-rate" class="block text-xs font-bold text-slate-700 mb-1">Points ({newDugnadActPointsType === "fixed" ? "fixed" : "per hr"}) *</label>
                   <input
                     id="new-act-rate"
                     type="number"
                     step="0.5"
                     min="1"
-                    bind:value={newDugnadActPointsPerHour}
+                    bind:value={newDugnadActpointsPer}
                     required
                     class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-teal-200 font-medium"
                   />
@@ -1832,7 +1750,7 @@
                       {act.title}
                     </span>
                     <span class="text-xs font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                      {act.pointsPerHour} pts / hr
+                      {act.pointsPer} {act.pointsType === "fixed" ? "pts fixed" : "pts / hr"}
                     </span>
                   </div>
                 </div>
@@ -2417,106 +2335,6 @@
       </div>
     {/if}
 
-    <!-- MODAL: Interactive Firebase Auth Login -->
-    {#if isFirebaseAuthModalOpen}
-      <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
-          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div class="flex items-center gap-2.5">
-              <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                <KeyRound class="w-5 h-5" />
-              </div>
-              <div>
-                <h3 class="font-bold text-slate-900 text-sm sm:text-base">Firebase Administrator-innlogging</h3>
-                <p class="text-[11px] text-slate-500">For direkte skrivetilgang til Firestore</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onclick={() => isFirebaseAuthModalOpen = false}
-              class="text-slate-400 hover:text-slate-600 cursor-pointer p-1"
-            >
-              <X class="w-4 h-4" />
-            </button>
-          </div>
-
-          <p class="text-xs text-slate-600 leading-relaxed">
-            I henhold til sikkerhetsreglene i Firestore må administratorer være autentisert via Firebase Authentication for å endre data. Passordet tastes inn her i nettleseren og sendes direkte og kryptert til Firebase Auth. Det lagres <strong>aldri</strong> i kildekoden, miljøvariabler eller URL.
-          </p>
-
-          <form onsubmit={handleFirebaseAuthSubmit} class="space-y-3.5">
-            <div>
-              <label for="firebase-admin-email" class="block text-xs font-bold text-slate-700 mb-1">
-                Admin E-post
-              </label>
-              <input
-                id="firebase-admin-email"
-                type="email"
-                bind:value={firebaseAdminEmail}
-                required
-                placeholder="admin@h4a-volleyball.internal"
-                class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 text-xs sm:text-sm font-medium"
-              />
-            </div>
-
-            <div>
-              <label for="firebase-admin-password" class="block text-xs font-bold text-slate-700 mb-1">
-                Admin Passord
-              </label>
-              <div class="relative">
-                <input
-                  id="firebase-admin-password"
-                  type={showFirebasePassword ? "text" : "password"}
-                  bind:value={firebaseAdminPassword}
-                  required
-                  placeholder="Skriv inn administrator-passord..."
-                  class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 text-xs sm:text-sm pr-10"
-                />
-                <button
-                  type="button"
-                  onclick={() => showFirebasePassword = !showFirebasePassword}
-                  class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  title={showFirebasePassword ? "Skjul" : "Vis"}
-                >
-                  <Eye class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {#if firebaseAuthError}
-              <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-start gap-2">
-                <AlertCircle class="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
-                <span>{firebaseAuthError}</span>
-              </div>
-            {/if}
-
-            <div class="pt-2 flex items-center gap-2">
-              <button
-                type="button"
-                onclick={() => isFirebaseAuthModalOpen = false}
-                class="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all cursor-pointer"
-              >
-                Avbryt
-              </button>
-              <button
-                type="submit"
-                disabled={isFirebaseSigningIn || !firebaseAdminEmail.trim() || !firebaseAdminPassword}
-                class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
-              >
-                {#if isFirebaseSigningIn}
-                  <RefreshCw class="w-3.5 h-3.5 animate-spin" />
-                  <span>Verifiserer...</span>
-                {:else}
-                  <ShieldCheck class="w-3.5 h-3.5" />
-                  <span>Aktiver skrivetilgang</span>
-                {/if}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    {/if}
-
     <!-- MODAL: Edit Fine Entry -->
     {#if editingFine}
       <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
@@ -2808,6 +2626,20 @@
               />
             </div>
 
+            <label class="flex items-start gap-2.5 p-3.5 bg-amber-50 rounded-xl border border-amber-200 cursor-pointer">
+              <input
+                type="checkbox"
+                bind:checked={editPersonExemptFromDutyReverse}
+                class="mt-0.5 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span>
+                <span class="block text-xs font-bold text-amber-950">Exclude from reversed Club Duty leaderboard</span>
+                <span class="block text-[11px] text-amber-800 mt-0.5">
+                  This person will not appear in the admin reversed ranking.
+                </span>
+              </span>
+            </label>
+
             <!-- Direct Leaderboards & Totals Adjustment -->
             <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
               <div>
@@ -3020,7 +2852,19 @@
               />
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label for="edit-act-type" class="block text-xs font-bold text-slate-700 mb-1">Point Type</label>
+                <select
+                  id="edit-act-type"
+                  bind:value={editDugnadActPointsType}
+                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                >
+                  <option value="perHour">Per hour</option>
+                  <option value="fixed">Fixed amount</option>
+                </select>
+              </div>
+
               <div>
                 <label for="edit-act-hours" class="block text-xs font-bold text-slate-700 mb-1">Standard Duration (Hours)</label>
                 <input
@@ -3030,18 +2874,19 @@
                   min="0.5"
                   max="24"
                   bind:value={editDugnadActDefaultHours}
+                  disabled={editDugnadActPointsType === "fixed"}
                   class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
                 />
               </div>
 
               <div>
-                <label for="edit-act-rate" class="block text-xs font-bold text-slate-700 mb-1">Points Rate (pts/hr)</label>
+                <label for="edit-act-rate" class="block text-xs font-bold text-slate-700 mb-1">Points ({editDugnadActPointsType === "fixed" ? "fixed" : "per hr"})</label>
                 <input
                   id="edit-act-rate"
                   type="number"
                   step="0.5"
                   min="1"
-                  bind:value={editDugnadActPointsPerHour}
+                  bind:value={editDugnadActpointsPer}
                   class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
                 />
               </div>
