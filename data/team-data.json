@@ -181,12 +181,12 @@
     }
   ],
   "dugnadActivities": [
-    { "id": "d1", "title": "Concession stand / Kiosk shift", "defaultHours": 3, "pointsPerHour": 10 },
-    { "id": "d2", "title": "Scorekeeper / Digital scoresheet", "defaultHours": 2, "pointsPerHour": 12 },
-    { "id": "d3", "title": "Referee / Line judge duty", "defaultHours": 2, "pointsPerHour": 15 },
-    { "id": "d4", "title": "Raffle / merchandise sales", "defaultHours": 4, "pointsPerHour": 10 },
-    { "id": "d5", "title": "Court set-up & net take-down", "defaultHours": 1.5, "pointsPerHour": 10 },
-    { "id": "d6", "title": "Team driver for away match", "defaultHours": 3, "pointsPerHour": 15 },
-    { "id": "d7", "title": "Other club duty", "defaultHours": 2, "pointsPerHour": 10 }
-  ]
+  { "id": "d1", "title": "Concession stand / Kiosk shift", "defaultHours": 3, "pointsPer": 10, "pointsType": "perHour" },
+  { "id": "d2", "title": "Scorekeeper / Digital scoresheet", "defaultHours": 2, "pointsPer": 12, "pointsType": "perHour" },
+  { "id": "d3", "title": "Referee / Line judge duty", "defaultHours": 2, "pointsPer": 15, "pointsType": "perHour" },
+  { "id": "d4", "title": "Raffle / merchandise sales", "defaultHours": 4, "pointsPer": 10, "pointsType": "perHour" },
+  { "id": "d5", "title": "Court set-up & net take-down", "defaultHours": 1.5, "pointsPer": 10, "pointsType": "perHour" },
+  { "id": "d6", "title": "Team driver for away match", "defaultHours": 3, "pointsPer": 15, "pointsType": "perHour" },
+  { "id": "d7", "title": "Other club duty", "defaultHours": 2, "pointsPer": 10, "pointsType": "perHour" }
+]
 }

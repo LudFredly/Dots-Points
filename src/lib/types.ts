@@ -45,7 +45,8 @@ export interface DugnadActivity {
   id: string;
   title: string;
   defaultHours: number;
-  pointsPerHour: number;
+  pointsPer: number;
+  pointsType: "perHour" | "fixed";
   description?: string;
 }
 

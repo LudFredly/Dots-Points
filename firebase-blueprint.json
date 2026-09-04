@@ -5,113 +5,307 @@
       "description": "Authorized administrator record for role-based access control",
       "type": "object",
       "properties": {
-        "uid": { "type": "string" },
-        "email": { "type": "string", "maxLength": 200 },
-        "role": { "type": "string", "enum": ["admin", "superadmin"] },
-        "createdAt": { "type": "string" }
+        "uid": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "admin",
+            "superadmin"
+          ]
+        },
+        "createdAt": {
+          "type": "string"
+        }
       },
-      "required": ["uid", "email", "role"]
+      "required": [
+        "uid",
+        "email",
+        "role"
+      ]
     },
     "Person": {
       "title": "Person",
       "description": "Team player or coach profile",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "firstName": { "type": "string", "maxLength": 100 },
-        "lastName": { "type": "string", "maxLength": 100 },
-        "number": { "type": "number" },
-        "role": { "type": "string", "maxLength": 100 },
-        "type": { "type": "string", "enum": ["player", "coach"] },
-        "active": { "type": "boolean" },
-        "exemptFromDutyReverse": { "type": "boolean" }
+        "id": {
+          "type": "string"
+        },
+        "firstName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "lastName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "number": {
+          "type": "number"
+        },
+        "role": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "player",
+            "coach"
+          ]
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "exemptFromDutyReverse": {
+          "type": "boolean"
+        }
       },
-      "required": ["id", "firstName", "lastName", "type"]
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "type"
+      ]
     },
     "FineRule": {
       "title": "FineRule",
       "description": "Fine violation catalog item and penalty amounts",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string", "maxLength": 200 },
-        "fine": { "type": "number" },
-        "fineMatch": { "type": "number" },
-        "finePractice": { "type": "number" },
-        "fineSocial": { "type": "number" },
-        "category": { "type": "string", "maxLength": 100 },
-        "description": { "type": "string", "maxLength": 500 }
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "fine": {
+          "type": "number"
+        },
+        "fineMatch": {
+          "type": "number"
+        },
+        "finePractice": {
+          "type": "number"
+        },
+        "fineSocial": {
+          "type": "number"
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        }
       },
-      "required": ["id", "title"]
+      "required": [
+        "id",
+        "title"
+      ]
     },
     "DugnadActivity": {
       "title": "DugnadActivity",
       "description": "Volunteer activity type and point rate",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string", "maxLength": 200 },
-        "defaultHours": { "type": "number" },
-        "pointsPerHour": { "type": "number" },
-        "description": { "type": "string", "maxLength": 500 }
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "defaultHours": {
+          "type": "number"
+        },
+        "pointsPer": {
+          "type": "number"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "pointsType": {
+          "type": "string",
+          "enum": [
+            "perHour",
+            "fixed"
+          ]
+        }
       },
-      "required": ["id", "title", "defaultHours", "pointsPerHour"]
+      "required": [
+        "id",
+        "title",
+        "defaultHours",
+        "pointsPer",
+        "pointsType"
+      ]
     },
     "TeamSettings": {
       "title": "TeamSettings",
       "description": "Global team configuration and fine pot visibility",
       "type": "object",
       "properties": {
-        "teamName": { "type": "string", "maxLength": 100 },
-        "season": { "type": "string", "maxLength": 50 },
-        "finePotPublished": { "type": "boolean" },
-        "hourlyPointsRate": { "type": "number" }
+        "teamName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "season": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "finePotPublished": {
+          "type": "boolean"
+        },
+        "hourlyPointsRate": {
+          "type": "number"
+        }
       },
-      "required": ["teamName", "season", "finePotPublished", "hourlyPointsRate"]
+      "required": [
+        "teamName",
+        "season",
+        "finePotPublished",
+        "hourlyPointsRate"
+      ]
     },
     "FineReport": {
       "title": "FineReport",
       "description": "Submitted penalty fine log",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "playerId": { "type": "string" },
-        "playerName": { "type": "string", "maxLength": 200 },
-        "ruleIds": { "type": "array" },
-        "ruleTitles": { "type": "array" },
-        "totalFine": { "type": "number" },
-        "comment": { "type": "string", "maxLength": 1000 },
-        "reportedBy": { "type": "string", "maxLength": 200 },
-        "date": { "type": "string" },
-        "eventContext": { "type": "string", "maxLength": 50 },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "paid": { "type": "boolean" },
-        "paidDate": { "type": "string" }
+        "id": {
+          "type": "string"
+        },
+        "playerId": {
+          "type": "string"
+        },
+        "playerName": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "ruleIds": {
+          "type": "array"
+        },
+        "ruleTitles": {
+          "type": "array"
+        },
+        "totalFine": {
+          "type": "number"
+        },
+        "comment": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "reportedBy": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "date": {
+          "type": "string"
+        },
+        "eventContext": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "paid": {
+          "type": "boolean"
+        },
+        "paidDate": {
+          "type": "string"
+        }
       },
-      "required": ["id", "playerId", "playerName", "totalFine", "status"]
+      "required": [
+        "id",
+        "playerId",
+        "playerName",
+        "totalFine",
+        "status"
+      ]
     },
     "DugnadEntry": {
       "title": "DugnadEntry",
       "description": "Volunteer / club duty log entry",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "playerId": { "type": "string" },
-        "playerName": { "type": "string", "maxLength": 200 },
-        "activityType": { "type": "string", "maxLength": 200 },
-        "hours": { "type": "number" },
-        "points": { "type": "number" },
-        "dutyHours": { "type": "number" },
-        "dutyPoints": { "type": "number" },
-        "hadTravel": { "type": "boolean" },
-        "travelHours": { "type": "number" },
-        "travelPoints": { "type": "number" },
-        "comment": { "type": "string", "maxLength": 1000 },
-        "date": { "type": "string" },
-        "reportedBy": { "type": "string", "maxLength": 200 },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] }
+        "id": {
+          "type": "string"
+        },
+        "playerId": {
+          "type": "string"
+        },
+        "playerName": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "activityType": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "hours": {
+          "type": "number"
+        },
+        "points": {
+          "type": "number"
+        },
+        "dutyHours": {
+          "type": "number"
+        },
+        "dutyPoints": {
+          "type": "number"
+        },
+        "hadTravel": {
+          "type": "boolean"
+        },
+        "travelHours": {
+          "type": "number"
+        },
+        "travelPoints": {
+          "type": "number"
+        },
+        "comment": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "date": {
+          "type": "string"
+        },
+        "reportedBy": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        }
       },
-      "required": ["id", "playerId", "playerName", "hours", "points", "status"]
+      "required": [
+        "id",
+        "playerId",
+        "playerName",
+        "hours",
+        "points",
+        "status"
+      ]
     }
   },
   "firestore": {
