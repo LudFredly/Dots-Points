@@ -18,7 +18,9 @@ import {
   deleteDoc,
   deleteField,
   onSnapshot,
-  writeBatch
+  writeBatch,
+  getDocs,
+  getDoc
 } from "firebase/firestore";
 
 export const DEFAULT_PERSONS: Person[] = [
@@ -482,7 +484,7 @@ export class H4ADataManager {
     this.notify();
   }
 
-  init() {
+  async init() {
     if (!this.isConfigured) {
       this.connectionError = "Firebase credentials not detected. The portal is displaying preview data. Add your Firebase keys to environment variables to enable live cloud synchronization.";
       this.persons = [...DEFAULT_PERSONS];
@@ -493,9 +495,61 @@ export class H4ADataManager {
       return;
     }
 
+    // Populate empty Firestore collections with the built-in defaults.
+    // Existing data is never overwritten.
+    try {
+      await this.seedDefaultDataIfNeeded();
+    } catch (err: any) {
+      console.error("Failed to initialize default Firestore data:", err);
+      this.connectionError = `Error initializing default data: ${err?.message || "Unknown error"}`;
+      this.notify();
+    }
+
     // Start Real-Time Firestore Listeners for authoritative shared state.
     // Access is controlled by the team/admin URL key in the frontend.
     this.startListeners();
+  }
+
+  private async seedDefaultDataIfNeeded(): Promise<void> {
+    const [personsSnapshot, rulesSnapshot, activitiesSnapshot, settingsSnapshot] = await Promise.all([
+      getDocs(collection(database, "persons")),
+      getDocs(collection(database, "fine_rules")),
+      getDocs(collection(database, "dugnad_activities")),
+      getDoc(doc(database, "settings", "team"))
+    ]);
+
+    const batch = writeBatch(database);
+    let hasWrites = false;
+
+    if (personsSnapshot.empty) {
+      for (const person of DEFAULT_PERSONS) {
+        batch.set(doc(database, "persons", person.id), person);
+      }
+      hasWrites = true;
+    }
+
+    if (rulesSnapshot.empty) {
+      for (const rule of DEFAULT_FINE_RULES) {
+        batch.set(doc(database, "fine_rules", rule.id), rule);
+      }
+      hasWrites = true;
+    }
+
+    if (activitiesSnapshot.empty) {
+      for (const activity of DEFAULT_DUGNAD_ACTIVITIES) {
+        batch.set(doc(database, "dugnad_activities", activity.id), activity);
+      }
+      hasWrites = true;
+    }
+
+    if (!settingsSnapshot.exists()) {
+      batch.set(doc(database, "settings", "team"), DEFAULT_SETTINGS);
+      hasWrites = true;
+    }
+
+    if (hasWrites) {
+      await batch.commit();
+    }
   }
 
   private startListeners() {
