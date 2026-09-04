@@ -2,124 +2,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
     function isValidId(id) {
       return id is string && id.size() > 0 && id.size() <= 128;
     }
 
-    // Role-based administrator authorization check
-    // Admins are verified either via custom claims (token.admin == true)
-    // or via registration in the secure /admins/{uid} collection.
-    function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.admin == true ||
-        request.auth.token.role == 'admin' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
-    }
-
-    // Validation for public fine submissions
-    function isValidPublicFine(fineId) {
-      return isValidId(fineId) &&
-        incoming().status == 'pending' &&
-        incoming().paid == false &&
-        incoming().playerId is string &&
-        incoming().playerId.size() > 0 &&
-        incoming().playerId.size() <= 100 &&
-        incoming().playerName is string &&
-        incoming().playerName.size() > 0 &&
-        incoming().playerName.size() <= 200 &&
-        incoming().totalFine is number &&
-        incoming().totalFine >= 0 &&
-        incoming().totalFine <= 50000 &&
-        incoming().ruleIds is list &&
-        incoming().ruleTitles is list &&
-        incoming().date is string;
-    }
-
-    // Validation for public club duty / volunteer submissions
-    function isValidPublicDugnad(dugnadId) {
-      return isValidId(dugnadId) &&
-        incoming().status == 'pending' &&
-        incoming().playerId is string &&
-        incoming().playerId.size() > 0 &&
-        incoming().playerId.size() <= 100 &&
-        incoming().playerName is string &&
-        incoming().playerName.size() > 0 &&
-        incoming().playerName.size() <= 200 &&
-        incoming().hours is number &&
-        incoming().hours >= 0 &&
-        incoming().hours <= 100 &&
-        incoming().points is number &&
-        incoming().points >= 0 &&
-        incoming().points <= 1000 &&
-        incoming().activityType is string &&
-        incoming().activityType.size() > 0 &&
-        incoming().date is string;
-    }
-
-    // --- Administrators Registry ---
-    match /admins/{adminId} {
-      // Authenticated users can read their own admin doc to verify admin status, or any admin can read all
-      allow read: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
-      // Only authenticated administrators can add, edit, or remove admins
-      allow write: if isAdmin() && isValidId(adminId);
-    }
-
     // --- Team Roster (Players & Coaches) ---
     match /persons/{personId} {
-      allow read: if true;
-      allow write: if isAdmin() && isValidId(personId);
+      allow read, write: if isValidId(personId);
     }
 
     // --- Fine Rules Catalog ---
     match /fine_rules/{ruleId} {
-      allow read: if true;
-      allow write: if isAdmin() && isValidId(ruleId);
+      allow read, write: if isValidId(ruleId);
     }
 
     // --- Dugnad Activity Types & Rates ---
     match /dugnad_activities/{activityId} {
-      allow read: if true;
-      allow write: if isAdmin() && isValidId(activityId);
+      allow read, write: if isValidId(activityId);
     }
 
     // --- Team Global Settings ---
     match /settings/{settingId} {
-      allow read: if true;
-      allow write: if isAdmin() && isValidId(settingId);
+      allow read, write: if isValidId(settingId);
     }
 
     // --- Fine Reports ---
     match /fines/{fineId} {
-      allow read: if true;
-
-      // Public create allowed only for new pending reports with valid payload structure
-      allow create: if (isAdmin() && isValidId(fineId)) ||
-        (!exists(/databases/$(database)/documents/fines/$(fineId)) && isValidPublicFine(fineId));
-
-      // Approvals, payment status, modifications, and deletions require administrator privileges
-      allow update, delete: if isAdmin();
+      allow read, write: if isValidId(fineId);
     }
 
     // --- Dugnad / Volunteer Duty Entries ---
     match /dugnad_entries/{dugnadId} {
-      allow read: if true;
-
-      // Public create allowed only for new pending entries with valid payload structure
-      allow create: if (isAdmin() && isValidId(dugnadId)) ||
-        (!exists(/databases/$(database)/documents/dugnad_entries/$(dugnadId)) && isValidPublicDugnad(dugnadId));
-
-      // Approvals, adjustments, modifications, and deletions require administrator privileges
-      allow update, delete: if isAdmin();
+      allow read, write: if isValidId(dugnadId);
     }
 
     // Default deny all other paths
@@ -128,3 +42,4 @@ service cloud.firestore {
     }
   }
 }
+

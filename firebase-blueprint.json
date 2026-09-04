@@ -23,7 +23,8 @@
         "number": { "type": "number" },
         "role": { "type": "string", "maxLength": 100 },
         "type": { "type": "string", "enum": ["player", "coach"] },
-        "active": { "type": "boolean" }
+        "active": { "type": "boolean" },
+        "exemptFromDutyReverse": { "type": "boolean" }
       },
       "required": ["id", "firstName", "lastName", "type"]
     },

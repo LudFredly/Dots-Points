@@ -9,7 +9,7 @@ import type {
   TeamDataBackup
 } from "$lib/types";
 import { sortPersonsAlphabetically } from "$lib/utils/nameHelper";
-import { database, auth, isFirebaseConfigured, handleFirestoreError, OperationType } from "$lib/utils/firestore";
+import { database, isFirebaseConfigured, handleFirestoreError, OperationType } from "$lib/utils/firestore";
 import {
   collection,
   doc,
@@ -21,12 +21,6 @@ import {
   onSnapshot,
   writeBatch
 } from "firebase/firestore";
-import {
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  type User
-} from "firebase/auth";
 
 export const DEFAULT_PERSONS: Person[] = [
   { id: "p1", firstName: "Henrik", lastName: "Karlsen", number: 4, role: "Setter (Captain)", type: "player", active: true },

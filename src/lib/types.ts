@@ -6,6 +6,7 @@ export interface Person {
   role?: string; // e.g. "Setter", "Outside Hitter", "Middle Blocker", "Opposite", "Libero", "Head Coach", "Assistant Coach", "Player"
   type: "player" | "coach";
   active?: boolean;
+  exemptFromDutyReverse?: boolean;
 }
 
 // Alias for Player
