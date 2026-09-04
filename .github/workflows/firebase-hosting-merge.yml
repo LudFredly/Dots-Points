@@ -20,6 +20,8 @@ jobs:
           VITE_FIREBASE_MESSAGE_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGE_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_ACCESS_KEY: ${{ secrets.VITE_ACCESS_KEY }}
+          VITE_ADMIN_ACCESS_KEY: ${{ secrets.VITE_ADMIN_ACCESS_KEY }}
+          VITE_ADMIN_EMAIL: ${{ secrets.VITE_ADMIN_EMAIL }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

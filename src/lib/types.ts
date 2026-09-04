@@ -72,3 +72,29 @@ export interface TeamSettings {
   finePotPublished: boolean;
   hourlyPointsRate: number;
 }
+
+export interface PlayerBackupData extends Person {
+  totalFineSum: number;
+  totalDugnadHours: number;
+  totalDugnadPoints: number;
+  fines: FineReport[];
+  dugnad: DugnadEntry[];
+}
+
+export interface TeamDataBackup {
+  _documentation?: {
+    title?: string;
+    description?: string;
+    howToPopulate?: string;
+    howToRestore?: string;
+  };
+  version: string;
+  exportedAt: string;
+  teamSettings?: Partial<TeamSettings>;
+  fineRules?: FineRule[];
+  dugnadActivities?: DugnadActivity[];
+  players: PlayerBackupData[];
+  coaches?: Person[];
+  unassignedFines?: FineReport[];
+  unassignedDugnad?: DugnadEntry[];
+}

@@ -10,6 +10,7 @@ node_modules/
 # SvelteKit
 .svelte-kit/
 build/
+dist/
 
 # Firebase local cache
 .firebase/

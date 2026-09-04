@@ -77,7 +77,7 @@
           </button>
         {/if}
 
-        {#if h4aStore.isAdminAuthenticated}
+        {#if h4aStore.isAdminAuthenticated || h4aStore.isAdminAccessGranted}
           <button
             type="button"
             onclick={() => onSelectTab(activeTab === 'admin' ? 'fine-form' : 'admin')}

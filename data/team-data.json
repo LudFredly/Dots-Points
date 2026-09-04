@@ -1,0 +1,192 @@
+{
+  "_documentation": {
+    "title": "H4A Volleyball Team Data Backup & Source of Truth",
+    "description": "This file is a dedicated, portable backup of the team roster, fine reports, dugnad (club duty) entries, and settings. It is strictly separated from application source code. You can replace this file with exported backups from the Admin interface at any time.",
+    "howToPopulate": "1. If your team data is already live in Firestore: Go to /admin on your site, open the 'Backup & Data' tab, and click 'Export team data'. Save that JSON file here as data/team-data.json. 2. Or manually edit the template below with your real player names, jersey numbers, positions, and history.",
+    "howToRestore": "In the Admin dashboard (/admin?key=YOUR_KEY), navigate to the 'Backup & Data' tab and use the 'Import team data' feature to safely validate and restore all players, fines, and dugnad records into Firestore."
+  },
+  "version": "1.0",
+  "exportedAt": "2026-09-04T00:00:00.000Z",
+  "teamSettings": {
+    "teamName": "H4A",
+    "season": "26/27",
+    "finePotPublished": false,
+    "hourlyPointsRate": 10
+  },
+  "players": [
+    {
+      "id": "template-player-1",
+      "firstName": "ExampleFirstName",
+      "lastName": "ExampleLastName",
+      "number": 1,
+      "role": "Setter",
+      "type": "player",
+      "active": true,
+      "totalFineSum": 50,
+      "totalDugnadHours": 3.0,
+      "totalDugnadPoints": 30,
+      "fines": [
+        {
+          "id": "sample-fine-1",
+          "playerId": "template-player-1",
+          "playerName": "ExampleFirstName ExampleLastName",
+          "ruleIds": ["r7"],
+          "ruleTitles": ["Late for warm-up / team call-up"],
+          "totalFine": 50,
+          "comment": "Late arrival for 18:00 practice",
+          "reportedBy": "Captain",
+          "date": "2026-09-01T18:05:00.000Z",
+          "eventContext": "Practice",
+          "status": "approved",
+          "paid": false
+        }
+      ],
+      "dugnad": [
+        {
+          "id": "sample-dugnad-1",
+          "playerId": "template-player-1",
+          "playerName": "ExampleFirstName ExampleLastName",
+          "activityType": "Scorekeeper / Digital scoresheet",
+          "hours": 3.0,
+          "points": 36,
+          "dutyHours": 2.0,
+          "dutyPoints": 24,
+          "hadTravel": true,
+          "travelHours": 1.0,
+          "travelPoints": 12,
+          "comment": "Home tournament match table duty",
+          "date": "2026-09-02T12:00:00.000Z",
+          "reportedBy": "ExampleFirstName ExampleLastName",
+          "status": "approved"
+        }
+      ]
+    }
+  ],
+  "coaches": [
+    {
+      "id": "template-coach-1",
+      "firstName": "CoachFirst",
+      "lastName": "CoachLast",
+      "role": "Head Coach",
+      "type": "coach",
+      "active": true
+    }
+  ],
+  "fineRules": [
+    {
+      "id": "r1",
+      "title": "Service into net on set point / 0-0",
+      "fine": 20,
+      "fineMatch": 20,
+      "category": "Match",
+      "description": "Missed serve directly into the net after a timeout or on decisive points"
+    },
+    {
+      "id": "r2",
+      "title": "Losing warm-up drill / last in sprints",
+      "fine": 20,
+      "finePractice": 20,
+      "category": "Practice",
+      "description": "Dropping an easy reception ball or finishing last in conditioning sprints"
+    },
+    {
+      "id": "r3",
+      "title": "Net touch on decisive ball",
+      "fine": 30,
+      "fineMatch": 30,
+      "category": "Match",
+      "description": "Touching the net on a set point, match point, or unforced situation"
+    },
+    {
+      "id": "r4",
+      "title": "Water bottle / tape left in gym",
+      "fine": 30,
+      "fineMatch": 30,
+      "finePractice": 30,
+      "category": "Equipment & Facility",
+      "description": "Leaving bottles, tape, or training gear behind on the court after practice or match"
+    },
+    {
+      "id": "r5",
+      "title": "Phone ringing / buzzing during tactical briefing",
+      "fine": 40,
+      "fineMatch": 40,
+      "finePractice": 40,
+      "fineSocial": 40,
+      "category": "Social & Conduct",
+      "description": "Phone makes noise in the locker room or during tactical timeout"
+    },
+    {
+      "id": "r6",
+      "title": "Dirty or black-soled shoes marking the court",
+      "fine": 40,
+      "fineMatch": 40,
+      "finePractice": 40,
+      "category": "Equipment & Facility",
+      "description": "Using outdoor footwear or shoes leaving black scuff marks on the court"
+    },
+    {
+      "id": "r7",
+      "title": "Late for warm-up / team call-up",
+      "fine": 50,
+      "fineMatch": 50,
+      "finePractice": 50,
+      "category": "Practice",
+      "description": "Arriving late to the gym or scheduled team meeting"
+    },
+    {
+      "id": "r8",
+      "title": "Forgot jersey / knee pads / match kit",
+      "fine": 50,
+      "fineMatch": 50,
+      "finePractice": 50,
+      "category": "Equipment & Facility",
+      "description": "Missing match jersey, shorts, kneepads, or designated team gear"
+    },
+    {
+      "id": "r9",
+      "title": "Custom / Special fine",
+      "fine": 50,
+      "fineMatch": 50,
+      "finePractice": 50,
+      "fineSocial": 50,
+      "category": "Other",
+      "description": "Ad-hoc penalty established by the team leadership or captain"
+    },
+    {
+      "id": "r10",
+      "title": "Yellow / Red card from referee",
+      "fine": 100,
+      "fineMatch": 100,
+      "category": "Match",
+      "description": "Unsportsmanlike conduct, arguing with officials, or penalty cards"
+    },
+    {
+      "id": "r11",
+      "title": "Birthday cake fine (missing birthday treats)",
+      "fine": 100,
+      "finePractice": 100,
+      "fineSocial": 100,
+      "category": "Social & Conduct",
+      "description": "Had a birthday recently without bringing cake or treats to the next practice"
+    },
+    {
+      "id": "r12",
+      "title": "Absence without 24h prior notification",
+      "fine": 100,
+      "fineMatch": 100,
+      "finePractice": 100,
+      "category": "Practice",
+      "description": "Late cancellation or unannounced absence on match or practice day"
+    }
+  ],
+  "dugnadActivities": [
+    { "id": "d1", "title": "Concession stand / Kiosk shift", "defaultHours": 3, "pointsPerHour": 10 },
+    { "id": "d2", "title": "Scorekeeper / Digital scoresheet", "defaultHours": 2, "pointsPerHour": 12 },
+    { "id": "d3", "title": "Referee / Line judge duty", "defaultHours": 2, "pointsPerHour": 15 },
+    { "id": "d4", "title": "Raffle / merchandise sales", "defaultHours": 4, "pointsPerHour": 10 },
+    { "id": "d5", "title": "Court set-up & net take-down", "defaultHours": 1.5, "pointsPerHour": 10 },
+    { "id": "d6", "title": "Team driver for away match", "defaultHours": 3, "pointsPerHour": 15 },
+    { "id": "d7", "title": "Other club duty", "defaultHours": 2, "pointsPerHour": 10 }
+  ]
+}

@@ -22,9 +22,29 @@
     Sparkles,
     Eye,
     LogOut,
-    Navigation
+    Navigation,
+    Download,
+    Upload,
+    Database,
+    FileDown,
+    FileUp,
+    FileText,
+    Check,
+    AlertTriangle,
+    CheckCircle,
+    ShieldCheck,
+    KeyRound
   } from "lucide-svelte";
-  import type { Person, FineRule, FineReport, DugnadEntry, DugnadActivity, TeamSettings } from "$lib/types";
+  import type {
+    Person,
+    FineRule,
+    FineReport,
+    DugnadEntry,
+    DugnadActivity,
+    TeamSettings,
+    TeamDataBackup,
+    PlayerBackupData
+  } from "$lib/types";
   import { getAdminFullName, getPublicDisplayName } from "$lib/utils/nameHelper";
   import { h4aStore, DEFAULT_DUGNAD_ACTIVITIES } from "$lib/utils/store";
 
@@ -82,12 +102,26 @@
     onExitAdmin?: () => void;
   } = $props();
 
-  // Admin Authentication State via Firebase Auth
-  let isAuthenticated = $derived(h4aStore.isAdminAuthenticated);
+  // Admin Authorization State (VITE_ADMIN_ACCESS_KEY or authenticated)
+  let isUnlocked = $derived(
+    h4aStore.isAdminAccessGranted ||
+    h4aStore.isAdminAuthenticated ||
+    !h4aStore.expectedAdminAccessKey
+  );
   let adminKeyInput = $state("");
   let authError = $state("");
   let isLoggingIn = $state(false);
   let showPassword = $state(false);
+
+  // Backup & Restore State
+  let isExporting = $state(false);
+  let isImporting = $state(false);
+  let isImportModalOpen = $state(false);
+  let pendingBackup = $state<TeamDataBackup | null>(null);
+  let importErrors = $state<string[]>([]);
+  let importMode = $state<"merge" | "replace">("merge");
+  let replaceConfirmation = $state("");
+  let fileInputRef = $state<HTMLInputElement | null>(null);
 
   async function handleAdminLogin(e: SubmitEvent) {
     e.preventDefault();
@@ -117,7 +151,149 @@
     }
   }
 
-  let adminTab = $state<"pending" | "roster" | "rules" | "dugnad_rates" | "records" | "settings">("pending");
+  // Interactive Firebase Auth Login State (for Firestore write privileges without hardcoded passwords)
+  let isFirebaseAuthModalOpen = $state(false);
+  let firebaseAdminEmail = $state(
+    (import.meta.env.VITE_ADMIN_EMAIL || "").trim() ||
+    (h4aStore.currentUser?.email || "")
+  );
+  let firebaseAdminPassword = $state("");
+  let firebaseAuthError = $state("");
+  let isFirebaseSigningIn = $state(false);
+  let showFirebasePassword = $state(false);
+
+  function ensureFirebaseAuth(): boolean {
+    if (h4aStore.isConfigured && !h4aStore.isAdminAuthenticated) {
+      isFirebaseAuthModalOpen = true;
+      notify("Vennligst logg inn med din Firebase Admin-konto for å utføre skrivinger til Firestore.", "error");
+      return false;
+    }
+    return true;
+  }
+
+  async function handleFirebaseAuthSubmit(e: SubmitEvent) {
+    e.preventDefault();
+    firebaseAuthError = "";
+    isFirebaseSigningIn = true;
+    try {
+      await h4aStore.loginAdmin(firebaseAdminEmail, firebaseAdminPassword);
+      firebaseAdminPassword = "";
+      isFirebaseAuthModalOpen = false;
+      notify("Autentisert! Full skrivetilgang til Firestore er nå aktiv.");
+    } catch (err: any) {
+      console.error("Firebase auth login error:", err);
+      firebaseAuthError = err?.message || "Kunne ikke logge inn på Firebase Authentication.";
+    } finally {
+      isFirebaseSigningIn = false;
+    }
+  }
+
+  async function handleFirebaseSignOut() {
+    try {
+      await h4aStore.logoutAdmin();
+      notify("Logget ut av Firebase Admin-konto.");
+    } catch (err: any) {
+      console.error("Sign out error:", err);
+    }
+  }
+
+  function handleExportTeamData() {
+    isExporting = true;
+    try {
+      const data = h4aStore.exportTeamData();
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `h4a-team-data-${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      const finesCount = data.players.reduce((sum, p) => sum + (p.fines?.length || 0), 0);
+      const dugnadCount = data.players.reduce((sum, p) => sum + (p.dugnad?.length || 0), 0);
+      notify(`Eksporterte ${data.players.length} spillere, ${finesCount} bøter og ${dugnadCount} dugnadsposter.`);
+    } catch (err: any) {
+      console.error("Export error:", err);
+      notify(err.message || "Kunne ikke eksportere teamdata.", "error");
+    } finally {
+      isExporting = false;
+    }
+  }
+
+  function handleFileInputChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+      processImportFile(target.files[0]);
+    }
+  }
+
+  async function processImportFile(file: File) {
+    importErrors = [];
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      importErrors = ["Filen må være en .json-fil."];
+      return;
+    }
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+
+      const errors: string[] = [];
+      if (!parsed || typeof parsed !== "object") {
+        errors.push("Filen inneholder ikke et gyldig JSON-objekt.");
+      } else if (!Array.isArray(parsed.players)) {
+        errors.push("Mangler påkrevd felt: 'players' må være en liste over spillere.");
+      } else if (parsed.players.length === 0) {
+        errors.push("Listen 'players' er tom.");
+      } else {
+        const invalid = parsed.players.filter((p: any) => !p || (!p.firstName && !p.name));
+        if (invalid.length > 0) {
+          errors.push(`${invalid.length} spiller(e) mangler fornavn.`);
+        }
+      }
+
+      if (errors.length > 0) {
+        importErrors = errors;
+        return;
+      }
+
+      pendingBackup = parsed as TeamDataBackup;
+      importMode = "merge";
+      replaceConfirmation = "";
+      isImportModalOpen = true;
+    } catch (err: any) {
+      console.error("JSON parse error:", err);
+      importErrors = [`Kunne ikke lese JSON: ${err.message}`];
+    }
+  }
+
+  async function executeImport() {
+    if (!ensureFirebaseAuth()) return;
+    if (!pendingBackup) return;
+    if (importMode === "replace" && replaceConfirmation.trim().toUpperCase() !== "ERSTATT") {
+      notify("Vennligst skriv 'ERSTATT' for å bekrefte full overskriving.", "error");
+      return;
+    }
+
+    isImporting = true;
+    try {
+      const res = await h4aStore.importTeamData(pendingBackup, importMode);
+      notify(`Vellykket import! ${res.playersCount} spillere, ${res.finesCount} bøter og ${res.dugnadCount} dugnader.`);
+      isImportModalOpen = false;
+      pendingBackup = null;
+      if (fileInputRef) fileInputRef.value = "";
+    } catch (err: any) {
+      console.error("Import error:", err);
+      notify(err.message || "Kunne ikke fullføre importen.", "error");
+    } finally {
+      isImporting = false;
+    }
+  }
+
+  let adminTab = $state<"pending" | "roster" | "rules" | "dugnad_rates" | "records" | "settings" | "backup">("pending");
 
   // Notifications
   let bannerMessage = $state<{ type: "success" | "error"; text: string } | null>(null);
@@ -297,6 +473,7 @@
   }
 
   function saveEditedPerson() {
+    if (!ensureFirebaseAuth()) return;
     if (!editingPerson || !editPersonFirstName.trim()) return;
 
     onUpdatePerson(editingPerson.id, {
@@ -322,6 +499,7 @@
 
   function handleAddPersonSubmit(e: SubmitEvent) {
     e.preventDefault();
+    if (!ensureFirebaseAuth()) return;
     if (!newPersonFirstName.trim()) return;
 
     onAddPerson(
@@ -363,6 +541,8 @@
 
     const fallbackRate = matchVal || practiceVal || socialVal || 50;
 
+    if (!ensureFirebaseAuth()) return;
+
     onUpdateFineRule(editingRule.id, {
       title: editRuleTitle.trim(),
       fine: fallbackRate,
@@ -378,6 +558,7 @@
 
   function handleAddRuleSubmit(e: SubmitEvent) {
     e.preventDefault();
+    if (!ensureFirebaseAuth()) return;
     if (!newRuleTitle.trim()) return;
 
     const matchVal = parseRate(newRuleFineMatch);
@@ -419,6 +600,7 @@
 
   function handleAddDugnadActivitySubmit(e: SubmitEvent) {
     e.preventDefault();
+    if (!ensureFirebaseAuth()) return;
     if (!newDugnadActTitle.trim()) return;
 
     onAddDugnadActivity?.({
@@ -435,6 +617,7 @@
   }
 
   function saveEditedDugnadActivity() {
+    if (!ensureFirebaseAuth()) return;
     if (!editingDugnadActivity || !editDugnadActTitle.trim()) return;
 
     onUpdateDugnadActivity?.(editingDugnadActivity.id, {
@@ -448,6 +631,7 @@
   }
 
   function toggleFinePotPublication() {
+    if (!ensureFirebaseAuth()) return;
     onUpdateSettings({
       finePotPublished: !settings.finePotPublished
     });
@@ -477,37 +661,84 @@
     </div>
   {/if}
 
-  {#if !isAuthenticated}
-    <!-- Access Denied View (No public login form) -->
-    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 sm:p-8 max-w-md mx-auto text-center space-y-4">
-      <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center shadow-inner">
+  {#if !isUnlocked}
+    <!-- Admin Access Key Gate (URL key or manual fallback entry) -->
+    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 sm:p-8 max-w-md mx-auto text-center space-y-5">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-inner">
         <Lock class="w-7 h-7" />
       </div>
 
       <div>
         <h2 class="text-xl font-bold text-slate-900 tracking-tight">
-          Adgang krever autorisasjon
+          Admin-adgang kreves
         </h2>
-        <p class="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-          Administratorpanelet har ingen offentlig innlogging og kan kun åpnes via din private, hemmelige admin-lenke.
+        <p class="text-xs sm:text-sm text-slate-500 mt-1.5 leading-relaxed">
+          Oppgi din <strong>ADMIN_ACCESS_KEY</strong> for å låse opp administrasjonspanelet, eller åpne via din admin-URL (<code class="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono text-xs">/admin?key=...</code>).
         </p>
       </div>
 
+      <form onsubmit={handleAdminLogin} class="space-y-4 text-left">
+        <div>
+          <label for="admin-key-input" class="block text-xs font-bold text-slate-700 mb-1.5">
+            Admin Access Key
+          </label>
+          <div class="relative">
+            <input
+              id="admin-key-input"
+              type={showPassword ? "text" : "password"}
+              bind:value={adminKeyInput}
+              required
+              placeholder="Skriv inn din ADMIN_ACCESS_KEY..."
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-mono pr-10"
+            />
+            <button
+              type="button"
+              onclick={() => showPassword = !showPassword}
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+              title={showPassword ? "Skjul" : "Vis"}
+            >
+              <Eye class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {#if authError}
+          <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-start gap-2">
+            <AlertCircle class="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+            <span>{authError}</span>
+          </div>
+        {/if}
+
+        <button
+          type="submit"
+          disabled={isLoggingIn || !adminKeyInput.trim()}
+          class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+        >
+          {#if isLoggingIn}
+            <RefreshCw class="w-4 h-4 animate-spin" />
+            <span>Verifiserer nøkkel...</span>
+          {:else}
+            <Unlock class="w-4 h-4" />
+            <span>Lås opp Admin-panelet</span>
+          {/if}
+        </button>
+      </form>
+
       {#if onExitAdmin}
-        <div class="pt-2">
+        <div class="pt-2 border-t border-slate-100">
           <button
             type="button"
             onclick={onExitAdmin}
-            class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            class="w-full py-2 text-slate-500 hover:text-slate-800 font-semibold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
           >
             <LogOut class="w-3.5 h-3.5" />
-            <span>Tilbake til portalen</span>
+            <span>Tilbake til hovedportalen</span>
           </button>
         </div>
       {/if}
 
       <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-400 text-center">
-        Sikret med Firebase Security Rules (rollebeskyttet på databasesiden)
+        Sikret med separat VITE_ADMIN_ACCESS_KEY
       </div>
     </div>
   {:else}
@@ -517,14 +748,32 @@
         <div class="flex items-center gap-2">
           <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
           <span class="text-xs uppercase font-extrabold tracking-wider text-emerald-400">
-            {settings?.teamName || 'H4A'} {settings?.season || '26/27'} Admin Console (Authenticated)
+            {settings?.teamName || 'H4A'} {settings?.season || '26/27'} Admin Console
           </span>
         </div>
         <h2 class="text-lg sm:text-xl font-bold text-white mt-1">
           Team Management & Approval Headquarters
         </h2>
-        <div class="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
-          <span class="text-emerald-400 font-medium">Autentisert som administrator</span>
+        <div class="text-xs text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
+          <span class="text-emerald-400 font-medium">Adgang godkjent via admin-nøkkel</span>
+          {#if h4aStore.isConfigured}
+            {#if h4aStore.isAdminAuthenticated}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700 text-[11px] font-semibold">
+                <ShieldCheck class="w-3 h-3 text-emerald-400" />
+                <span>Firestore-skriving aktiv ({h4aStore.currentUser?.email || 'admin'})</span>
+              </span>
+            {:else}
+              <button
+                type="button"
+                onclick={() => isFirebaseAuthModalOpen = true}
+                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-950 hover:bg-amber-900 text-amber-300 border border-amber-600 text-[11px] font-semibold transition-all cursor-pointer"
+                title="Klikk for å logge inn på Firebase Auth og aktivere Firestore-skrivetilgang"
+              >
+                <AlertTriangle class="w-3 h-3 text-amber-400" />
+                <span>Logg inn for Firestore-skrivetilgang</span>
+              </button>
+            {/if}
+          {/if}
         </div>
       </div>
 
@@ -548,6 +797,18 @@
           </button>
         </div>
 
+        {#if h4aStore.isConfigured && h4aStore.isAdminAuthenticated}
+          <button
+            type="button"
+            onclick={handleFirebaseSignOut}
+            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Logg ut av Firebase Auth (behold nøkkeltilgang)"
+          >
+            <KeyRound class="w-3.5 h-3.5 text-emerald-400" />
+            <span>Avslutt DB-sesjon</span>
+          </button>
+        {/if}
+
         <!-- Exit / Sign Out Admin Button -->
         <button
           type="button"
@@ -560,6 +821,29 @@
         </button>
       </div>
     </div>
+
+    <!-- Notification Banner if Firestore Write Access is Not Yet Activated -->
+    {#if h4aStore.isConfigured && !h4aStore.isAdminAuthenticated}
+      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-900 shadow-xs">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2 font-bold text-sm text-amber-950">
+            <KeyRound class="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Skrivetilgang til Firestore krever Firebase Authentication</span>
+          </div>
+          <p class="text-xs text-amber-800 leading-relaxed max-w-2xl">
+            Konsollet er åpnet med din <span class="font-mono font-semibold">ADMIN_ACCESS_KEY</span>. For å utføre skrivinger til Firestore (godkjenne/avvise bøter, endre spillere, lagre regler eller importere backup), må du logge inn med din Firebase Administrator-konto. Sesjonen lagres sikkert i nettleseren.
+          </p>
+        </div>
+        <button
+          type="button"
+          onclick={() => isFirebaseAuthModalOpen = true}
+          class="px-4 py-2 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-bold rounded-xl text-xs transition-all shadow-xs shrink-0 cursor-pointer flex items-center gap-1.5"
+        >
+          <Unlock class="w-3.5 h-3.5" />
+          <span>Koble til Firebase Auth</span>
+        </button>
+      </div>
+    {/if}
 
     <!-- Admin Navigation Tabs -->
     <div class="bg-slate-900 p-1.5 rounded-2xl shadow-sm border border-slate-800 flex items-center gap-1 overflow-x-auto text-xs sm:text-sm font-bold">
@@ -620,6 +904,15 @@
       >
         <Settings class="w-4 h-4 text-slate-300" />
         <span>Settings</span>
+      </button>
+
+      <button
+        type="button"
+        onclick={() => adminTab = "backup"}
+        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'backup' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
+      >
+        <Database class="w-4 h-4 text-emerald-300" />
+        <span>Backup & Data</span>
       </button>
     </div>
 
@@ -1599,6 +1892,410 @@
             <RefreshCw class="w-3.5 h-3.5" />
             <span>Reset Defaults</span>
           </button>
+        </div>
+      </div>
+
+    <!-- TAB 7: BACKUP & DATA -->
+    {:else if adminTab === "backup"}
+      <div class="space-y-6">
+        <!-- Intro Banner -->
+        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 space-y-2">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <Database class="w-5 h-5" />
+            </div>
+            <div>
+              <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                Lagring, backup og datagjenoppretting
+              </h3>
+              <p class="text-xs text-slate-500">
+                Eksporter fullstendige teamdata til en bærbar JSON-kopi, eller gjenopprett og oppdater databasen fra en tidligere eksportert sikkerhetskopi.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2-Column Action Cards: Export and Import -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- CARD 1: EXPORT -->
+          <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between space-y-6">
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <Download class="w-3.5 h-3.5" />
+                  <span>Offline sikkerhetskopi</span>
+                </span>
+                <span class="text-xs text-slate-400 font-medium">Bærbart JSON-format</span>
+              </div>
+
+              <div>
+                <h4 class="text-base font-bold text-slate-900">
+                  Eksporter teamdata
+                </h4>
+                <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Laster ned en komplett JSON-fil som inneholder alle spillere, posisjoner, drakter, alle godkjente og ventende bøter, dugnadsarbeid, bøteregler og sesonginnstillinger. Filen kan oppbevares som backup eller lagres som <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">data/team-data.json</code> i repositoriet.
+                </p>
+              </div>
+
+              <!-- Data scope counts -->
+              <div class="grid grid-cols-3 gap-2.5 p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                <div>
+                  <div class="text-base sm:text-lg font-black text-slate-900">
+                    {persons.filter(p => p.type === "player").length}
+                  </div>
+                  <div class="text-[10px] uppercase font-bold text-slate-500">Spillere</div>
+                </div>
+                <div>
+                  <div class="text-base sm:text-lg font-black text-emerald-600">
+                    {fines.length}
+                  </div>
+                  <div class="text-[10px] uppercase font-bold text-slate-500">Bøter ({approvedTotalFines} kr)</div>
+                </div>
+                <div>
+                  <div class="text-base sm:text-lg font-black text-teal-600">
+                    {dugnad.length}
+                  </div>
+                  <div class="text-[10px] uppercase font-bold text-slate-500">Dugnader ({approvedTotalHours.toFixed(1)}t)</div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onclick={handleExportTeamData}
+              disabled={isExporting}
+              class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {#if isExporting}
+                <RefreshCw class="w-4 h-4 animate-spin" />
+                <span>Genererer eksport...</span>
+              {:else}
+                <Download class="w-4 h-4" />
+                <span>Last ned team-data.json</span>
+              {/if}
+            </button>
+          </div>
+
+          <!-- CARD 2: IMPORT -->
+          <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between space-y-6">
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                  <Upload class="w-3.5 h-3.5" />
+                  <span>Import / Gjenopprett</span>
+                </span>
+                <span class="text-xs text-slate-400 font-medium">Valideres før skriving</span>
+              </div>
+
+              <div>
+                <h4 class="text-base font-bold text-slate-900">
+                  Importer teamdata
+                </h4>
+                <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Last opp en tidligere eksportert JSON-fil (f.eks. <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">team-data.json</code>). Filen kontrolleres og du får velge om du vil flette (trygt) eller erstatte før data lagres.
+                </p>
+              </div>
+
+              <!-- Upload Drag & Drop Box -->
+              <label
+                for="team-data-file-input"
+                class="border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-emerald-50/40 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all"
+              >
+                <FileUp class="w-7 h-7 text-slate-400 mb-2" />
+                <span class="text-xs font-bold text-slate-700">
+                  Klikk for å velge <span class="text-emerald-600">team-data.json</span>
+                </span>
+                <span class="text-[11px] text-slate-400 mt-0.5">
+                  eller dra og slipp filen her
+                </span>
+                <input
+                  id="team-data-file-input"
+                  bind:this={fileInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  class="hidden"
+                  onchange={handleFileInputChange}
+                />
+              </label>
+
+              {#if importErrors.length > 0}
+                <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs space-y-1">
+                  <div class="font-bold flex items-center gap-1.5">
+                    <AlertCircle class="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>Valideringsfeil:</span>
+                  </div>
+                  <ul class="list-disc list-inside space-y-0.5 text-[11px]">
+                    {#each importErrors as err}
+                      <li>{err}</li>
+                    {/each}
+                  </ul>
+                </div>
+              {/if}
+            </div>
+
+            <div class="pt-2">
+              <div class="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1">
+                <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500 inline" />
+                <span>Ingen data slettes automatisk uten din eksplisitte bekreftelse</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- MODAL: Inspect & Confirm Import -->
+    {#if isImportModalOpen && pendingBackup}
+      {@const totalFinesInFile = pendingBackup.players?.reduce((sum, p) => sum + (p.fines?.length || 0), 0) || 0}
+      {@const totalDugnadInFile = pendingBackup.players?.reduce((sum, p) => sum + (p.dugnad?.length || 0), 0) || 0}
+      <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5 border border-slate-200">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <Upload class="w-5 h-5" />
+              </div>
+              <div>
+                <h4 class="font-bold text-base text-slate-900">
+                  Bekreft import av teamdata
+                </h4>
+                <p class="text-[11px] text-slate-400">
+                  Eksportert: {new Date(pendingBackup.exportedAt || Date.now()).toLocaleString("no-NO")} • Versjon {pendingBackup.version || "1.0"}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onclick={() => {
+                isImportModalOpen = false;
+                pendingBackup = null;
+              }}
+              class="text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Inspection Summary Grid -->
+          <div class="grid grid-cols-3 gap-2.5 p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs">
+            <div>
+              <div class="text-base sm:text-lg font-black text-slate-900">
+                {pendingBackup.players?.length || 0}
+              </div>
+              <div class="text-[10px] uppercase font-bold text-slate-500">Spillere</div>
+            </div>
+            <div>
+              <div class="text-base sm:text-lg font-black text-emerald-600">
+                {totalFinesInFile}
+              </div>
+              <div class="text-[10px] uppercase font-bold text-slate-500">Bøter</div>
+            </div>
+            <div>
+              <div class="text-base sm:text-lg font-black text-teal-600">
+                {totalDugnadInFile}
+              </div>
+              <div class="text-[10px] uppercase font-bold text-slate-500">Dugnader</div>
+            </div>
+          </div>
+
+          <!-- Mode Selection -->
+          <div class="space-y-3">
+            <div class="text-xs font-bold text-slate-800">
+              Velg hvordan data skal importeres:
+            </div>
+
+            <!-- Option 1: Merge -->
+            <label
+              class="flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer {importMode === 'merge' ? 'border-emerald-500 bg-emerald-50/40' : 'border-slate-200 hover:border-slate-300'}"
+            >
+              <input
+                type="radio"
+                name="import-mode"
+                value="merge"
+                checked={importMode === "merge"}
+                onchange={() => importMode = "merge"}
+                class="mt-1 text-emerald-600 focus:ring-emerald-500"
+              />
+              <div class="space-y-0.5">
+                <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>Merge / Oppdater eksisterende</span>
+                  <span class="text-[10px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-semibold">Anbefalt</span>
+                </div>
+                <div class="text-[11px] text-slate-500 leading-relaxed">
+                  Oppdaterer spillere og legger til manglende bøter og dugnadsarbeid. Sletter <strong>aldri</strong> eksisterende data i databasen.
+                </div>
+              </div>
+            </label>
+
+            <!-- Option 2: Replace -->
+            <label
+              class="flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer {importMode === 'replace' ? 'border-rose-500 bg-rose-50/40' : 'border-slate-200 hover:border-slate-300'}"
+            >
+              <input
+                type="radio"
+                name="import-mode"
+                value="replace"
+                checked={importMode === "replace"}
+                onchange={() => importMode = "replace"}
+                class="mt-1 text-rose-600 focus:ring-rose-500"
+              />
+              <div class="space-y-0.5">
+                <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span class="text-rose-700">Erstatt all teamdata (Full restore)</span>
+                </div>
+                <div class="text-[11px] text-slate-500 leading-relaxed">
+                  Sletter poster som ikke finnes i backup-filen, og overskriver gjeldende database fullstendig med filens innhold.
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <!-- If Replace Mode: confirmation safeguard -->
+          {#if importMode === "replace"}
+            <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl space-y-2">
+              <div class="flex items-center gap-1.5 text-rose-800 font-bold text-xs">
+                <AlertTriangle class="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Sikkerhetsbekreftelse påkrevd</span>
+              </div>
+              <p class="text-[11px] text-rose-700">
+                Skriv <strong>ERSTATT</strong> i feltet under for å bekrefte at du vil overskrive eksisterende teamdata:
+              </p>
+              <input
+                type="text"
+                bind:value={replaceConfirmation}
+                placeholder="Skriv ERSTATT..."
+                class="w-full px-3 py-2 bg-white border border-rose-300 rounded-lg text-xs font-bold text-rose-900 placeholder:text-rose-300"
+              />
+            </div>
+          {/if}
+
+          <!-- Action buttons -->
+          <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onclick={() => {
+                isImportModalOpen = false;
+                pendingBackup = null;
+              }}
+              class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer transition-all"
+            >
+              Avbryt
+            </button>
+            <button
+              type="button"
+              onclick={executeImport}
+              disabled={isImporting || (importMode === 'replace' && replaceConfirmation.trim().toUpperCase() !== 'ERSTATT')}
+              class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer transition-all flex items-center gap-2"
+            >
+              {#if isImporting}
+                <RefreshCw class="w-3.5 h-3.5 animate-spin" />
+                <span>Importerer data...</span>
+              {:else}
+                <Check class="w-3.5 h-3.5" />
+                <span>Fullfør import</span>
+              {/if}
+            </button>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- MODAL: Interactive Firebase Auth Login -->
+    {#if isFirebaseAuthModalOpen}
+      <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <KeyRound class="w-5 h-5" />
+              </div>
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm sm:text-base">Firebase Administrator-innlogging</h3>
+                <p class="text-[11px] text-slate-500">For direkte skrivetilgang til Firestore</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onclick={() => isFirebaseAuthModalOpen = false}
+              class="text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </div>
+
+          <p class="text-xs text-slate-600 leading-relaxed">
+            I henhold til sikkerhetsreglene i Firestore må administratorer være autentisert via Firebase Authentication for å endre data. Passordet tastes inn her i nettleseren og sendes direkte og kryptert til Firebase Auth. Det lagres <strong>aldri</strong> i kildekoden, miljøvariabler eller URL.
+          </p>
+
+          <form onsubmit={handleFirebaseAuthSubmit} class="space-y-3.5">
+            <div>
+              <label for="firebase-admin-email" class="block text-xs font-bold text-slate-700 mb-1">
+                Admin E-post
+              </label>
+              <input
+                id="firebase-admin-email"
+                type="email"
+                bind:value={firebaseAdminEmail}
+                required
+                placeholder="admin@h4a-volleyball.internal"
+                class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 text-xs sm:text-sm font-medium"
+              />
+            </div>
+
+            <div>
+              <label for="firebase-admin-password" class="block text-xs font-bold text-slate-700 mb-1">
+                Admin Passord
+              </label>
+              <div class="relative">
+                <input
+                  id="firebase-admin-password"
+                  type={showFirebasePassword ? "text" : "password"}
+                  bind:value={firebaseAdminPassword}
+                  required
+                  placeholder="Skriv inn administrator-passord..."
+                  class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 text-xs sm:text-sm pr-10"
+                />
+                <button
+                  type="button"
+                  onclick={() => showFirebasePassword = !showFirebasePassword}
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  title={showFirebasePassword ? "Skjul" : "Vis"}
+                >
+                  <Eye class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {#if firebaseAuthError}
+              <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-start gap-2">
+                <AlertCircle class="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+                <span>{firebaseAuthError}</span>
+              </div>
+            {/if}
+
+            <div class="pt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onclick={() => isFirebaseAuthModalOpen = false}
+                class="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all cursor-pointer"
+              >
+                Avbryt
+              </button>
+              <button
+                type="submit"
+                disabled={isFirebaseSigningIn || !firebaseAdminEmail.trim() || !firebaseAdminPassword}
+                class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                {#if isFirebaseSigningIn}
+                  <RefreshCw class="w-3.5 h-3.5 animate-spin" />
+                  <span>Verifiserer...</span>
+                {:else}
+                  <ShieldCheck class="w-3.5 h-3.5" />
+                  <span>Aktiver skrivetilgang</span>
+                {/if}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     {/if}
