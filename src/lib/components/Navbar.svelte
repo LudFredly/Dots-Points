@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Shield, Clock, Award, Unlock, Settings, Users, BookOpen, CheckCircle } from "lucide-svelte";
+  import { Shield, Clock, Unlock, Settings, Users, BookOpen, CheckCircle } from "lucide-svelte";
   import { h4aStore } from "$lib/utils/store";
   import type { FineReport, DugnadEntry, Person, TeamSettings } from "$lib/types";
 
@@ -82,11 +82,10 @@
     </div>
 
     <!-- Quick Stats Bar -->
-    <div class="mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 gap-2 text-center text-xs">
+    <div class="mt-3 pt-3 border-t border-slate-800 grid grid-cols-1 gap-2 text-center text-xs">
       <!-- Fine Pot Widget -->
       <div class="bg-slate-800/80 rounded-xl py-2 px-3 border border-slate-700/80">
         <div class="text-slate-400 text-[11px] font-medium flex items-center justify-center gap-1 mb-0.5">
-          <Shield class="w-3 h-3 text-emerald-400" />
           <span>Team Penalty Pot</span>
         </div>
         <div class="font-bold text-sm sm:text-base flex items-center justify-center gap-1">
@@ -104,17 +103,6 @@
           {:else}
             <span class="text-slate-300 font-mono tracking-wider font-extrabold">??? kr</span>
           {/if}
-        </div>
-      </div>
-
-      <!-- Submissions Count -->
-      <div class="bg-slate-800/80 rounded-xl py-2 px-3 border border-slate-700/80">
-        <div class="text-slate-400 text-[11px] font-medium flex items-center justify-center gap-1 mb-0.5">
-          <Award class="w-3 h-3 text-amber-400" />
-          <span>Approved Logs</span>
-        </div>
-        <div class="font-bold text-white text-sm sm:text-base">
-          {approvedFines.length + approvedDugnad.length} total
         </div>
       </div>
     </div>

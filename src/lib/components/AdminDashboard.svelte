@@ -188,7 +188,7 @@
   async function processImportFile(file: File) {
     importErrors = [];
     if (!file.name.toLowerCase().endsWith(".json")) {
-      importErrors = ["Filen må være en .json-fil."];
+      importErrors = ["File must be a .json file."];
       return;
     }
     try {
@@ -197,15 +197,15 @@
 
       const errors: string[] = [];
       if (!parsed || typeof parsed !== "object") {
-        errors.push("Filen inneholder ikke et gyldig JSON-objekt.");
+        errors.push("File does not contain a valid JSON object.");
       } else if (!Array.isArray(parsed.players)) {
-        errors.push("Mangler påkrevd felt: 'players' må være en liste over spillere.");
+        errors.push("Missing required field: 'players' must be a list of players.");
       } else if (parsed.players.length === 0) {
-        errors.push("Listen 'players' er tom.");
+        errors.push("The 'players' list is empty.");
       } else {
         const invalid = parsed.players.filter((p: any) => !p || (!p.firstName && !p.name));
         if (invalid.length > 0) {
-          errors.push(`${invalid.length} spiller(e) mangler fornavn.`);
+          errors.push(`${invalid.length} player(s) are missing a first name.`);
         }
       }
 
@@ -220,33 +220,33 @@
       isImportModalOpen = true;
     } catch (err: any) {
       console.error("JSON parse error:", err);
-      importErrors = [`Kunne ikke lese JSON: ${err.message}`];
+      importErrors = [`Could not read JSON: ${err.message}`];
     }
   }
 
   async function executeImport() {
-    if (!pendingBackup) return;
-    if (importMode === "replace" && replaceConfirmation.trim().toUpperCase() !== "ERSTATT") {
-      notify("Vennligst skriv 'ERSTATT' for å bekrefte full overskriving.", "error");
-      return;
-    }
-
-    isImporting = true;
-    try {
-      const res = await h4aStore.importTeamData(pendingBackup, importMode);
-      notify(`Vellykket import! ${res.playersCount} spillere, ${res.finesCount} bøter og ${res.dugnadCount} dugnader.`);
-      isImportModalOpen = false;
-      pendingBackup = null;
-      if (fileInputRef) fileInputRef.value = "";
-    } catch (err: any) {
-      console.error("Import error:", err);
-      notify(err.message || "Kunne ikke fullføre importen.", "error");
-    } finally {
-      isImporting = false;
-    }
+  if (!pendingBackup) return;
+  if (importMode === "replace" && replaceConfirmation.trim().toUpperCase() !== "REPLACE") {
+    notify("Please type 'REPLACE' to confirm full data replacement.", "error");
+    return;
   }
 
-  let adminTab = $state<"pending" | "roster" | "duty_leaderboard" | "rules" | "dugnad_rates" | "records" | "settings" | "backup">("pending");
+  isImporting = true;
+  try {
+    const res = await h4aStore.importTeamData(pendingBackup, importMode);
+    notify(`Import successful! ${res.playersCount} players, ${res.finesCount} fines, and ${res.dugnadCount} club duties.`);
+    isImportModalOpen = false;
+    pendingBackup = null;
+    if (fileInputRef) fileInputRef.value = "";
+  } catch (err: any) {
+    console.error("Import error:", err);
+    notify(err.message || "Could not complete the import.", "error");
+  } finally {
+    isImporting = false;
+  }
+}
+
+  let adminTab = $state<"pending" | "roster" | "duty_leaderboard" | "rules" | "dugnad_rates" | "records" | "settings">("pending");
 
   // Notifications
   let bannerMessage = $state<{ type: "success" | "error"; text: string } | null>(null);
@@ -856,7 +856,6 @@
         onclick={() => adminTab = "pending"}
         class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'pending' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
       >
-        <ShieldAlert class="w-4 h-4 text-emerald-300" />
         <span>Pending Queue</span>
         {#if pendingTotalCount > 0}
           <span class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
@@ -870,17 +869,7 @@
         onclick={() => adminTab = "roster"}
         class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'roster' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
       >
-        <Users class="w-4 h-4 text-teal-300" />
         <span>Team Roster ({persons.length})</span>
-      </button>
-
-      <button
-        type="button"
-        onclick={() => adminTab = "duty_leaderboard"}
-        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'duty_leaderboard' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
-      >
-        <Trophy class="w-4 h-4 text-amber-300" />
-        <span>Duty Leaderboard</span>
       </button>
 
       <button
@@ -888,7 +877,6 @@
         onclick={() => adminTab = "rules"}
         class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'rules' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
       >
-        <BookOpen class="w-4 h-4 text-amber-300" />
         <span>Fine Rules ({rules.length})</span>
       </button>
 
@@ -897,8 +885,15 @@
         onclick={() => adminTab = "dugnad_rates"}
         class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'dugnad_rates' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
       >
-        <HeartHandshake class="w-4 h-4 text-teal-400" />
         <span>Club Duty Activities ({activeDugnadActivities.length})</span>
+      </button>
+
+      <button
+        type="button"
+        onclick={() => adminTab = "duty_leaderboard"}
+        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'duty_leaderboard' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
+      >
+        <span>Due for Duty</span>
       </button>
 
       <button
@@ -906,8 +901,7 @@
         onclick={() => adminTab = "records"}
         class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'records' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
       >
-        <Sliders class="w-4 h-4 text-sky-300" />
-        <span>All Records</span>
+        <span>Records</span>
       </button>
 
       <button
@@ -916,16 +910,6 @@
         class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'settings' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
       >
         <Settings class="w-4 h-4 text-slate-300" />
-        <span>Settings</span>
-      </button>
-
-      <button
-        type="button"
-        onclick={() => adminTab = "backup"}
-        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'backup' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
-      >
-        <Database class="w-4 h-4 text-emerald-300" />
-        <span>Backup & Data</span>
       </button>
     </div>
 
@@ -939,7 +923,6 @@
               <ShieldAlert class="w-4 h-4 text-amber-400" />
               <span>Pending Fine Reports ({pendingFines.length})</span>
             </div>
-            <span class="text-xs text-slate-400">Requires Captain / Treasurer Approval</span>
           </div>
 
           <div class="divide-y divide-slate-100">
@@ -1027,7 +1010,6 @@
               <HeartHandshake class="w-4 h-4 text-teal-400" />
               <span>Pending Club Duty Logs ({pendingDugnad.length})</span>
             </div>
-            <span class="text-xs text-slate-400">Award duty & travel points</span>
           </div>
 
           <div class="divide-y divide-slate-100">
@@ -1114,10 +1096,10 @@
         <div class="p-4 sm:p-5 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 class="text-base sm:text-lg font-bold text-white tracking-tight">
-              Team Roster & Individual Leaderboards
+              Team Roster & Individual Stats
             </h3>
             <p class="text-xs text-slate-400">
-              Full names displayed. Alphabetically sorted. Add or remove players and coaches.
+              Manage your team's roster. Add or remove players and coaches, or change specific stats.
             </p>
           </div>
 
@@ -1440,10 +1422,10 @@
         <div class="p-4 sm:p-5 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 class="text-base sm:text-lg font-bold text-white tracking-tight">
-              Fine Rules & Occasion Amounts
+              Fine Rules & Occasions
             </h3>
             <p class="text-xs text-slate-400">
-              Each rule must have at least one occasion amount (Match, Practice, or Social) set with 5 kr increments. Unset occasions do not show during fine reporting.
+              Manage penalties. Each rule must have at least one occasion (Match, Practice, or Social) and an accompanying amount. Unset occasions do not show during fine reporting.
             </p>
           </div>
 
@@ -1487,7 +1469,7 @@
               <div class="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2">
                 <div>
                   <span class="block text-xs font-bold text-slate-800">
-                    Occasion Amounts (Mandatory: enter kr for applicable occasions) *
+                    Occasion Amounts *
                   </span>
                   <span class="block text-[11px] text-slate-500 italic mt-0.5">
                     * Leave empty or 0 if this rule does not apply to that occasion.
@@ -1499,7 +1481,7 @@
                     <input
                       id="adm-match-rate"
                       type="number"
-                      step="5"
+                      step="1"
                       min="0"
                       placeholder="e.g. 50"
                       bind:value={newRuleFineMatch}
@@ -1511,7 +1493,7 @@
                     <input
                       id="adm-practice-rate"
                       type="number"
-                      step="5"
+                      step="1"
                       min="0"
                       placeholder="e.g. 50"
                       bind:value={newRuleFinePractice}
@@ -1523,7 +1505,7 @@
                     <input
                       id="adm-social-rate"
                       type="number"
-                      step="5"
+                      step="1"
                       min="0"
                       placeholder="e.g. 50"
                       bind:value={newRuleFineSocial}
@@ -1642,7 +1624,7 @@
                 <span>Club Duty Activities & Rates ({activeDugnadActivities.length})</span>
               </h3>
               <p class="text-xs text-slate-400 mt-0.5">
-                Manage specific club duties, standard durations, and points per hour.
+                Manage club duties, standard durations, and points awarded.
               </p>
             </div>
 
@@ -1690,10 +1672,11 @@
                     class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-teal-200 font-medium"
                   >
                     <option value="perHour">Per hour</option>
-                    <option value="fixed">Fixed amount</option>
+                    <option value="fixed">Fixed</option>
                   </select>
                 </div>
 
+                {#if newDugnadActPointsType === "perHour"}
                 <div>
                   <label for="new-act-hours" class="block text-xs font-bold text-slate-700 mb-1">Standard Duration (Hours)</label>
                   <input
@@ -1703,13 +1686,13 @@
                     min="0.5"
                     max="24"
                     bind:value={newDugnadActDefaultHours}
-                    disabled={newDugnadActPointsType === "fixed"}
                     class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-teal-200 font-medium"
                   />
                 </div>
+                {/if}
 
                 <div>
-                  <label for="new-act-rate" class="block text-xs font-bold text-slate-700 mb-1">Points ({newDugnadActPointsType === "fixed" ? "fixed" : "per hr"}) *</label>
+                  <label for="new-act-rate" class="block text-xs font-bold text-slate-700 mb-1">Points ({newDugnadActPointsType === "fixed" ? "fixed" : "per hour"}) *</label>
                   <input
                     id="new-act-rate"
                     type="number"
@@ -1915,267 +1898,286 @@
 
     <!-- TAB 6: SETTINGS & PUBLISHING -->
     {:else if adminTab === "settings"}
-      <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 space-y-6">
-        <div>
-          <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-            Portal & Season Configuration
-          </h3>
-          <p class="text-xs text-slate-500">
-            Manage privacy, publication switches, and team details. Changes to Team Name and Season propagate immediately across the entire site.
-          </p>
+      <div class="space-y-6">
+
+        <!-- SETTINGS -->
+        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 space-y-6">
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+              Portal & Season Configuration
+            </h3>
+            <p class="text-xs text-slate-500">
+              Manage privacy, publication switches, and team details. Changes to Team Name and Season propagate immediately across the entire site.
+            </p>
+          </div>
+
+          <!-- Publication Big Box -->
+          <div class="p-5 rounded-2xl border-2 {settings.finePotPublished ? 'border-emerald-500 bg-emerald-50/50' : 'border-amber-400 bg-amber-50/50'} space-y-3">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <div class="text-xs font-bold uppercase tracking-wider {settings.finePotPublished ? 'text-emerald-800' : 'text-amber-800'}">
+                  Penalty Pot & Leaderboards Privacy
+                </div>
+                <div class="text-base font-black text-slate-900 mt-0.5">
+                  {#if settings.finePotPublished}
+                    Fine Pot is currently PUBLISHED to all team members
+                  {:else}
+                    Fine Pot is currently HIDDEN (displays "??? kr")
+                  {/if}
+                </div>
+                <p class="text-xs text-slate-600 mt-1 max-w-xl">
+                  When hidden, the total fine pot in the header and the penalty leaderboard are concealed from public view. Toggle on when you are ready to reveal the results before a preparty.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onclick={toggleFinePotPublication}
+                class="px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all shadow-xs cursor-pointer shrink-0 {settings.finePotPublished ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-amber-500 hover:bg-amber-400 text-slate-950'}"
+              >
+                {#if settings.finePotPublished}
+                  <span class="flex items-center gap-1.5">
+                    <Unlock class="w-4 h-4" />
+                    <span>Switch to Hidden</span>
+                  </span>
+                {:else}
+                  <span class="flex items-center gap-1.5">
+                    <Lock class="w-4 h-4" />
+                    <span>Publish Leaderboards</span>
+                  </span>
+                {/if}
+              </button>
+            </div>
+          </div>
+
+          <!-- Season Settings Form -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-200">
+            <div>
+              <label for="set-team-name" class="block text-xs font-bold text-slate-700 mb-1">
+                Team Name
+              </label>
+              <input
+                id="set-team-name"
+                type="text"
+                bind:value={settings.teamName}
+                oninput={() => {
+                  onUpdateSettings({ teamName: settings.teamName });
+                }}
+                onchange={() => {
+                  onUpdateSettings({ teamName: settings.teamName });
+                  notify("Updated team name.");
+                }}
+                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label for="set-team-season" class="block text-xs font-bold text-slate-700 mb-1">
+                Season
+              </label>
+              <input
+                id="set-team-season"
+                type="text"
+                bind:value={settings.season}
+                oninput={() => {
+                  onUpdateSettings({ season: settings.season });
+                }}
+                onchange={() => {
+                  onUpdateSettings({ season: settings.season });
+                  notify("Updated season.");
+                }}
+                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs sm:text-sm"
+              />
+            </div>
+          </div>
+
+          <!-- Reset / Danger Zone -->
+          <div class="pt-6 border-t border-slate-200 flex items-center justify-between">
+            <div>
+              <div class="text-xs font-bold text-slate-900">
+                Reset Sample Data
+              </div>
+              <div class="text-[11px] text-slate-500">
+                Restore initial team roster, fine rules, and sample entries.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onclick={() => {
+                onResetData();
+                notify("Reset all data to defaults.");
+              }}
+              class="px-3.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-xs font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer"
+            >
+              <RefreshCw class="w-3.5 h-3.5" />
+              <span>Reset Defaults</span>
+            </button>
+          </div>
         </div>
 
-        <!-- Publication Big Box -->
-        <div class="p-5 rounded-2xl border-2 {settings.finePotPublished ? 'border-emerald-500 bg-emerald-50/50' : 'border-amber-400 bg-amber-50/50'} space-y-3">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <div class="text-xs font-bold uppercase tracking-wider {settings.finePotPublished ? 'text-emerald-800' : 'text-amber-800'}">
-                Penalty Pot & Leaderboards Privacy
+        <!-- BACKUP & DATA -->
+        <div class="space-y-6">
+          <!-- Intro Banner -->
+          <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 space-y-2">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <Database class="w-5 h-5" />
               </div>
-              <div class="text-base font-black text-slate-900 mt-0.5">
-                {#if settings.finePotPublished}
-                  Fine Pot is currently PUBLISHED to all team members
+              <div>
+                <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                  Data Storage & Backup
+                </h3>
+                <p class="text-xs text-slate-500">
+                  Export complete team data to a portable JSON backup, or restore and update the database from a previously exported backup.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2-Column Action Cards: Export and Import -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- CARD 1: EXPORT -->
+            <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between space-y-6">
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <Download class="w-3.5 h-3.5" />
+                    <span>Offline Backup</span>
+                  </span>
+                  <span class="text-xs text-slate-400 font-medium">Portable JSON Format</span>
+                </div>
+
+                <div>
+                  <h4 class="text-base font-bold text-slate-900">
+                    Export Team Data
+                  </h4>
+                  <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Download a complete JSON file containing all players, positions, jerseys, approved and pending fines, club duties, fine rules, and season settings. The file can be stored as a backup or saved as <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">data/team-data.json</code> in the repository.
+                  </p>
+                </div>
+
+                <!-- Data scope counts -->
+                <div class="grid grid-cols-4 gap-2.5 p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                  <div>
+                    <div class="text-base sm:text-lg font-black text-slate-900">
+                      {persons.filter(p => p.type === "player").length}
+                    </div>
+                    <div class="text-[10px] uppercase font-bold text-slate-500">Players</div>
+                  </div>
+
+                  <div>
+                    <div class="text-base sm:text-lg font-black text-slate-900">
+                      {persons.filter(p => p.type === "coach").length}
+                    </div>
+                    <div class="text-[10px] uppercase font-bold text-slate-500">Coaches</div>
+                  </div>
+
+                  <div>
+                    <div class="text-base sm:text-lg font-black text-emerald-600">
+                      {fines.length}
+                    </div>
+                    <div class="text-[10px] uppercase font-bold text-slate-500">
+                      Fines<br>({approvedTotalFines} kr)
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="text-base sm:text-lg font-black text-teal-600">
+                      {dugnad.length}
+                    </div>
+                    <div class="text-[10px] uppercase font-bold text-slate-500">
+                      Club Duties<br> ({approvedTotalHours.toFixed(1)} hours)
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onclick={handleExportTeamData}
+                disabled={isExporting}
+                class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {#if isExporting}
+                  <RefreshCw class="w-4 h-4 animate-spin" />
+                  <span>Genererer eksport...</span>
                 {:else}
-                  Fine Pot is currently HIDDEN (displays "??? kr")
+                  <Download class="w-4 h-4" />
+                  <span>Last ned team-data.json</span>
+                {/if}
+              </button>
+            </div>
+
+            <!-- CARD 2: IMPORT -->
+            <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between space-y-6">
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                    <Upload class="w-3.5 h-3.5" />
+                    <span>Import / Restore</span>
+                  </span>
+                  <span class="text-xs text-slate-400 font-medium">Note: Validate Before Writing</span>
+                </div>
+
+                <div>
+                  <h4 class="text-base font-bold text-slate-900">
+                    Import Team Data
+                  </h4>
+                  <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Upload a previously exported JSON file (e.g. <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">team-data.json</code>). The file will be validated before you can choose to merge or replace the existing data.
+                  </p>
+                </div>
+
+                <!-- Upload Drag & Drop Box -->
+                <label
+                  for="team-data-file-input"
+                  class="border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-emerald-50/40 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all"
+                >
+                  <FileUp class="w-7 h-7 text-slate-400 mb-2" />
+                  <span class="text-xs font-bold text-slate-700">
+                    Click to select <span class="text-emerald-600">team-data.json</span>
+                  </span>
+                  <span class="text-[11px] text-slate-400 mt-0.5">
+                    or drag and drop the file here
+                  </span>
+
+                  <input
+                    id="team-data-file-input"
+                    bind:this={fileInputRef}
+                    type="file"
+                    accept=".json,application/json"
+                    class="hidden"
+                    onchange={handleFileInputChange}
+                  />
+                </label>
+
+                {#if importErrors.length > 0}
+                  <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs space-y-1">
+                    <div class="font-bold flex items-center gap-1.5">
+                      <AlertCircle class="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>Validation Error:</span>
+                    </div>
+
+                    <ul class="list-disc list-inside space-y-0.5 text-[11px]">
+                      {#each importErrors as err}
+                        <li>{err}</li>
+                      {/each}
+                    </ul>
+                  </div>
                 {/if}
               </div>
-              <p class="text-xs text-slate-600 mt-1 max-w-xl">
-                When hidden, the total fine pot in the header and the penalty leaderboard are concealed from public view. Toggle on when you are ready to reveal the season end results.
-              </p>
-            </div>
 
-            <button
-              type="button"
-              onclick={toggleFinePotPublication}
-              class="px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all shadow-xs cursor-pointer shrink-0 {settings.finePotPublished ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-amber-500 hover:bg-amber-400 text-slate-950'}"
-            >
-              {#if settings.finePotPublished}
-                <span class="flex items-center gap-1.5">
-                  <Unlock class="w-4 h-4" />
-                  <span>Switch to Hidden</span>
-                </span>
-              {:else}
-                <span class="flex items-center gap-1.5">
-                  <Lock class="w-4 h-4" />
-                  <span>Publish Leaderboards</span>
-                </span>
-              {/if}
-            </button>
-          </div>
-        </div>
-
-        <!-- Season Settings Form -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-200">
-          <div>
-            <label for="set-team-name" class="block text-xs font-bold text-slate-700 mb-1">
-              Team Name
-            </label>
-            <input
-              id="set-team-name"
-              type="text"
-              bind:value={settings.teamName}
-              oninput={() => {
-                onUpdateSettings({ teamName: settings.teamName });
-              }}
-              onchange={() => {
-                onUpdateSettings({ teamName: settings.teamName });
-                notify("Updated team name.");
-              }}
-              class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs sm:text-sm"
-            />
-          </div>
-
-          <div>
-            <label for="set-team-season" class="block text-xs font-bold text-slate-700 mb-1">
-              Season
-            </label>
-            <input
-              id="set-team-season"
-              type="text"
-              bind:value={settings.season}
-              oninput={() => {
-                onUpdateSettings({ season: settings.season });
-              }}
-              onchange={() => {
-                onUpdateSettings({ season: settings.season });
-                notify("Updated season.");
-              }}
-              class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs sm:text-sm"
-            />
-          </div>
-        </div>
-
-        <!-- Reset / Danger Zone -->
-        <div class="pt-6 border-t border-slate-200 flex items-center justify-between">
-          <div>
-            <div class="text-xs font-bold text-slate-900">
-              Reset Sample Data
-            </div>
-            <div class="text-[11px] text-slate-500">
-              Restore initial team roster, fine rules, and sample entries.
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onclick={() => {
-              onResetData();
-              notify("Reset all data to defaults.");
-            }}
-            class="px-3.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-xs font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer"
-          >
-            <RefreshCw class="w-3.5 h-3.5" />
-            <span>Reset Defaults</span>
-          </button>
-        </div>
-      </div>
-
-    <!-- TAB 7: BACKUP & DATA -->
-    {:else if adminTab === "backup"}
-      <div class="space-y-6">
-        <!-- Intro Banner -->
-        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 space-y-2">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <Database class="w-5 h-5" />
-            </div>
-            <div>
-              <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                Lagring, backup og datagjenoppretting
-              </h3>
-              <p class="text-xs text-slate-500">
-                Eksporter fullstendige teamdata til en bærbar JSON-kopi, eller gjenopprett og oppdater databasen fra en tidligere eksportert sikkerhetskopi.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2-Column Action Cards: Export and Import -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- CARD 1: EXPORT -->
-          <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between space-y-6">
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <Download class="w-3.5 h-3.5" />
-                  <span>Offline sikkerhetskopi</span>
-                </span>
-                <span class="text-xs text-slate-400 font-medium">Bærbart JSON-format</span>
-              </div>
-
-              <div>
-                <h4 class="text-base font-bold text-slate-900">
-                  Eksporter teamdata
-                </h4>
-                <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Laster ned en komplett JSON-fil som inneholder alle spillere, posisjoner, drakter, alle godkjente og ventende bøter, dugnadsarbeid, bøteregler og sesonginnstillinger. Filen kan oppbevares som backup eller lagres som <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">data/team-data.json</code> i repositoriet.
-                </p>
-              </div>
-
-              <!-- Data scope counts -->
-              <div class="grid grid-cols-3 gap-2.5 p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
-                <div>
-                  <div class="text-base sm:text-lg font-black text-slate-900">
-                    {persons.filter(p => p.type === "player").length}
-                  </div>
-                  <div class="text-[10px] uppercase font-bold text-slate-500">Spillere</div>
-                </div>
-                <div>
-                  <div class="text-base sm:text-lg font-black text-emerald-600">
-                    {fines.length}
-                  </div>
-                  <div class="text-[10px] uppercase font-bold text-slate-500">Bøter ({approvedTotalFines} kr)</div>
-                </div>
-                <div>
-                  <div class="text-base sm:text-lg font-black text-teal-600">
-                    {dugnad.length}
-                  </div>
-                  <div class="text-[10px] uppercase font-bold text-slate-500">Dugnader ({approvedTotalHours.toFixed(1)}t)</div>
+              <div class="pt-2">
+                <div class="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1">
+                  <span>No data is deleted automatically without your explicit confirmation</span>
                 </div>
               </div>
             </div>
-
-            <button
-              type="button"
-              onclick={handleExportTeamData}
-              disabled={isExporting}
-              class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {#if isExporting}
-                <RefreshCw class="w-4 h-4 animate-spin" />
-                <span>Genererer eksport...</span>
-              {:else}
-                <Download class="w-4 h-4" />
-                <span>Last ned team-data.json</span>
-              {/if}
-            </button>
-          </div>
-
-          <!-- CARD 2: IMPORT -->
-          <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between space-y-6">
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
-                  <Upload class="w-3.5 h-3.5" />
-                  <span>Import / Gjenopprett</span>
-                </span>
-                <span class="text-xs text-slate-400 font-medium">Valideres før skriving</span>
-              </div>
-
-              <div>
-                <h4 class="text-base font-bold text-slate-900">
-                  Importer teamdata
-                </h4>
-                <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Last opp en tidligere eksportert JSON-fil (f.eks. <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">team-data.json</code>). Filen kontrolleres og du får velge om du vil flette (trygt) eller erstatte før data lagres.
-                </p>
-              </div>
-
-              <!-- Upload Drag & Drop Box -->
-              <label
-                for="team-data-file-input"
-                class="border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-emerald-50/40 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all"
-              >
-                <FileUp class="w-7 h-7 text-slate-400 mb-2" />
-                <span class="text-xs font-bold text-slate-700">
-                  Klikk for å velge <span class="text-emerald-600">team-data.json</span>
-                </span>
-                <span class="text-[11px] text-slate-400 mt-0.5">
-                  eller dra og slipp filen her
-                </span>
-                <input
-                  id="team-data-file-input"
-                  bind:this={fileInputRef}
-                  type="file"
-                  accept=".json,application/json"
-                  class="hidden"
-                  onchange={handleFileInputChange}
-                />
-              </label>
-
-              {#if importErrors.length > 0}
-                <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs space-y-1">
-                  <div class="font-bold flex items-center gap-1.5">
-                    <AlertCircle class="w-4 h-4 text-rose-600 shrink-0" />
-                    <span>Valideringsfeil:</span>
-                  </div>
-                  <ul class="list-disc list-inside space-y-0.5 text-[11px]">
-                    {#each importErrors as err}
-                      <li>{err}</li>
-                    {/each}
-                  </ul>
-                </div>
-              {/if}
-            </div>
-
-            <div class="pt-2">
-              <div class="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1">
-                <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500 inline" />
-                <span>Ingen data slettes automatisk uten din eksplisitte bekreftelse</span>
-              </div>
-            </div>
           </div>
         </div>
+
       </div>
     {/if}
 
@@ -2183,22 +2185,26 @@
     {#if isImportModalOpen && pendingBackup}
       {@const totalFinesInFile = pendingBackup.players?.reduce((sum, p) => sum + (p.fines?.length || 0), 0) || 0}
       {@const totalDugnadInFile = pendingBackup.players?.reduce((sum, p) => sum + (p.dugnad?.length || 0), 0) || 0}
+
       <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5 border border-slate-200">
+
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2.5">
               <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <Upload class="w-5 h-5" />
               </div>
+
               <div>
                 <h4 class="font-bold text-base text-slate-900">
-                  Bekreft import av teamdata
+                  Confirm Team Data Import
                 </h4>
                 <p class="text-[11px] text-slate-400">
-                  Eksportert: {new Date(pendingBackup.exportedAt || Date.now()).toLocaleString("no-NO")} • Versjon {pendingBackup.version || "1.0"}
+                  Exported: {new Date(pendingBackup.exportedAt || Date.now()).toLocaleString("en-US")} • Version {pendingBackup.version || "1.0"}
                 </p>
               </div>
             </div>
+
             <button
               type="button"
               onclick={() => {
@@ -2217,26 +2223,28 @@
               <div class="text-base sm:text-lg font-black text-slate-900">
                 {pendingBackup.players?.length || 0}
               </div>
-              <div class="text-[10px] uppercase font-bold text-slate-500">Spillere</div>
+              <div class="text-[10px] uppercase font-bold text-slate-500">Players</div>
             </div>
+
             <div>
               <div class="text-base sm:text-lg font-black text-emerald-600">
                 {totalFinesInFile}
               </div>
-              <div class="text-[10px] uppercase font-bold text-slate-500">Bøter</div>
+              <div class="text-[10px] uppercase font-bold text-slate-500">Fines</div>
             </div>
+
             <div>
               <div class="text-base sm:text-lg font-black text-teal-600">
                 {totalDugnadInFile}
               </div>
-              <div class="text-[10px] uppercase font-bold text-slate-500">Dugnader</div>
+              <div class="text-[10px] uppercase font-bold text-slate-500">Club Duties</div>
             </div>
           </div>
 
           <!-- Mode Selection -->
           <div class="space-y-3">
             <div class="text-xs font-bold text-slate-800">
-              Velg hvordan data skal importeres:
+              Choose how the data should be imported:
             </div>
 
             <!-- Option 1: Merge -->
@@ -2251,13 +2259,17 @@
                 onchange={() => importMode = "merge"}
                 class="mt-1 text-emerald-600 focus:ring-emerald-500"
               />
+
               <div class="space-y-0.5">
                 <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                  <span>Merge / Oppdater eksisterende</span>
-                  <span class="text-[10px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-semibold">Anbefalt</span>
+                  <span>Merge / Update Existing</span>
+                  <span class="text-[10px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-semibold">
+                    Recommended
+                  </span>
                 </div>
+
                 <div class="text-[11px] text-slate-500 leading-relaxed">
-                  Oppdaterer spillere og legger til manglende bøter og dugnadsarbeid. Sletter <strong>aldri</strong> eksisterende data i databasen.
+                  Updates players and adds missing fines and club duties. It <strong>never</strong> deletes existing data from the database.
                 </div>
               </div>
             </label>
@@ -2274,12 +2286,14 @@
                 onchange={() => importMode = "replace"}
                 class="mt-1 text-rose-600 focus:ring-rose-500"
               />
+
               <div class="space-y-0.5">
                 <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                  <span class="text-rose-700">Erstatt all teamdata (Full restore)</span>
+                  <span class="text-rose-700">Replace All Team Data (Full Restore)</span>
                 </div>
+
                 <div class="text-[11px] text-slate-500 leading-relaxed">
-                  Sletter poster som ikke finnes i backup-filen, og overskriver gjeldende database fullstendig med filens innhold.
+                  Deletes records that are not present in the backup file and completely replaces the current database with the file's contents.
                 </div>
               </div>
             </label>
@@ -2290,15 +2304,17 @@
             <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl space-y-2">
               <div class="flex items-center gap-1.5 text-rose-800 font-bold text-xs">
                 <AlertTriangle class="w-4 h-4 text-rose-600 shrink-0" />
-                <span>Sikkerhetsbekreftelse påkrevd</span>
+                <span>Confirmation Required</span>
               </div>
+
               <p class="text-[11px] text-rose-700">
-                Skriv <strong>ERSTATT</strong> i feltet under for å bekrefte at du vil overskrive eksisterende teamdata:
+                Type <strong>REPLACE</strong> in the field below to confirm that you want to overwrite the existing team data:
               </p>
+
               <input
                 type="text"
                 bind:value={replaceConfirmation}
-                placeholder="Skriv ERSTATT..."
+                placeholder="Type REPLACE..."
                 class="w-full px-3 py-2 bg-white border border-rose-300 rounded-lg text-xs font-bold text-rose-900 placeholder:text-rose-300"
               />
             </div>
@@ -2314,23 +2330,25 @@
               }}
               class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer transition-all"
             >
-              Avbryt
+              Cancel
             </button>
+
             <button
               type="button"
               onclick={executeImport}
-              disabled={isImporting || (importMode === 'replace' && replaceConfirmation.trim().toUpperCase() !== 'ERSTATT')}
+              disabled={isImporting || (importMode === 'replace' && replaceConfirmation.trim().toUpperCase() !== 'REPLACE')}
               class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer transition-all flex items-center gap-2"
             >
               {#if isImporting}
                 <RefreshCw class="w-3.5 h-3.5 animate-spin" />
-                <span>Importerer data...</span>
+                <span>Importing Data...</span>
               {:else}
                 <Check class="w-3.5 h-3.5" />
-                <span>Fullfør import</span>
+                <span>Complete Import</span>
               {/if}
             </button>
           </div>
+
         </div>
       </div>
     {/if}
@@ -2368,7 +2386,7 @@
                 <input
                   id="edit-fine-amount"
                   type="number"
-                  step="5"
+                  step="1"
                   min="0"
                   bind:value={editFineAmount}
                   class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
@@ -2751,7 +2769,7 @@
             <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
               <div>
                 <span class="block text-xs font-bold text-slate-800">
-                  Occasion Amounts (Mandatory: enter amounts in 5 kr steps) *
+                  Occasion Amounts *
                 </span>
                 <span class="block text-[11px] text-slate-500 italic mt-0.5">
                   * Leave blank or 0 to exclude this violation from that occasion.
@@ -2763,7 +2781,7 @@
                   <input
                     id="edit-match-rate"
                     type="number"
-                    step="5"
+                    step="1"
                     min="0"
                     placeholder="None"
                     bind:value={editRuleFineMatch}
@@ -2775,7 +2793,7 @@
                   <input
                     id="edit-practice-rate"
                     type="number"
-                    step="5"
+                    step="1"
                     min="0"
                     placeholder="None"
                     bind:value={editRuleFinePractice}
@@ -2787,7 +2805,7 @@
                   <input
                     id="edit-social-rate"
                     type="number"
-                    step="5"
+                    step="1"
                     min="0"
                     placeholder="None"
                     bind:value={editRuleFineSocial}
@@ -2861,10 +2879,11 @@
                   class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
                 >
                   <option value="perHour">Per hour</option>
-                  <option value="fixed">Fixed amount</option>
+                  <option value="fixed">Fixed</option>
                 </select>
               </div>
 
+              {#if editDugnadActPointsType === "perHour"}
               <div>
                 <label for="edit-act-hours" class="block text-xs font-bold text-slate-700 mb-1">Standard Duration (Hours)</label>
                 <input
@@ -2874,13 +2893,13 @@
                   min="0.5"
                   max="24"
                   bind:value={editDugnadActDefaultHours}
-                  disabled={editDugnadActPointsType === "fixed"}
                   class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
                 />
               </div>
+              {/if}
 
               <div>
-                <label for="edit-act-rate" class="block text-xs font-bold text-slate-700 mb-1">Points ({editDugnadActPointsType === "fixed" ? "fixed" : "per hr"})</label>
+                <label for="edit-act-rate" class="block text-xs font-bold text-slate-700 mb-1">Points ({editDugnadActPointsType === "fixed" ? "fixed" : "per hour"})</label>
                 <input
                   id="edit-act-rate"
                   type="number"

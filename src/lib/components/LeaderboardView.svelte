@@ -15,7 +15,7 @@
     settings: TeamSettings;
   } = $props();
 
-  let activeView = $state<"fines" | "dugnad">("fines");
+  let activeView = $state<"fines" | "dugnad">("dugnad");
 
   // Only approved entries count
   const approvedFines = $derived(fines.filter(f => f.status === "approved"));
@@ -25,33 +25,23 @@
   const coaches = $derived(persons.filter(p => p.type === "coach"));
 
   // Compute fine totals per person
-  const playerFineStats = $derived(() => {
-    return players.map(p => {
+  const fineStats = $derived(() => {
+    return persons.map(p => {
       const pFines = approvedFines.filter(f => f.playerId === p.id);
       const totalAmount = pFines.reduce((sum, f) => sum + (f.totalFine || 0), 0);
       const count = pFines.length;
+
       return {
         person: p,
         displayName: getPublicDisplayName(p, persons),
         totalAmount,
         count
       };
-    }).sort((a, b) => b.totalAmount - a.totalAmount || b.count - a.count || a.displayName.localeCompare(b.displayName));
-  });
-
-  // Coaches fine stats (at the bottom of fine list)
-  const coachFineStats = $derived(() => {
-    return coaches.map(c => {
-      const cFines = approvedFines.filter(f => f.playerId === c.id);
-      const totalAmount = cFines.reduce((sum, f) => sum + (f.totalFine || 0), 0);
-      const count = cFines.length;
-      return {
-        person: c,
-        displayName: getPublicDisplayName(c, persons),
-        totalAmount,
-        count
-      };
-    }).sort((a, b) => b.totalAmount - a.totalAmount || a.displayName.localeCompare(b.displayName));
+    }).sort((a, b) =>
+      b.totalAmount - a.totalAmount ||
+      b.count - a.count ||
+      a.displayName.localeCompare(b.displayName)
+    );
   });
 
   // Compute dugnad totals per player (players only)
@@ -130,24 +120,24 @@
       <div class="space-y-6">
         <!-- Top 3 Podium for Fines -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {#each playerFineStats().slice(0, 3) as item, index}
+          {#each fineStats().slice(0, 3) as item, index}
             {@const rankColors = [
-              "border-amber-400 bg-amber-50/50 text-amber-950",
-              "border-slate-300 bg-slate-50 text-slate-900",
-              "border-amber-700/30 bg-amber-50/30 text-amber-900"
+              "border-black-400 bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-50 text-slate-900",
+              "border-black-400 bg-gradient-to-r from-slate-50 via-slate-200 to-slate-50 text-slate-900",
+              "border-black-400 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 text-slate-900"
             ]}
-            {@const rankTitles = ["Fine King (1st)", "2nd Place", "3rd Place"]}
-            <div class="rounded-2xl border p-4 text-center shadow-xs {rankColors[index]}">
-              <div class="text-[11px] font-bold uppercase tracking-wider mb-1 opacity-80">
+            {@const rankTitles = ["🥇", "🥈", "🥉"]}
+            <div class="rounded-2xl border p-2 pb-4 text-center shadow-xs {rankColors[index]}">
+              <div class="text-[20px] tracking-wider mb-0">
                 {rankTitles[index]}
               </div>
-              <div class="text-base sm:text-lg font-black tracking-tight mb-0.5">
+              <div class="text-base sm:text-lg font-black tracking-tight">
                 {item.displayName}
               </div>
-              <div class="text-xs text-slate-500 mb-2">
+              <div class="text-sm text-black mb-3">
                 {item.person.role || "Player"} {item.person.number ? `(#${item.person.number})` : ""}
               </div>
-              <div class="text-xl sm:text-2xl font-black text-emerald-950">
+              <div class="text-xl sm:text-2xl font-black text-black">
                 {item.totalAmount} kr
               </div>
               <div class="text-[11px] text-slate-500 font-medium">
@@ -170,7 +160,7 @@
           </div>
 
           <div class="divide-y divide-slate-100">
-            {#each playerFineStats() as item, idx}
+            {#each fineStats() as item, idx}
               <div class="p-3.5 sm:px-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
                 <div class="flex items-center gap-3">
                   <span class="w-6 text-center font-bold text-xs {idx < 3 ? 'text-amber-600 font-black' : 'text-slate-400'}">
@@ -198,42 +188,6 @@
             {/each}
           </div>
         </div>
-
-        <!-- Coaches Penalty Section (At the bottom of fine list) -->
-        {#if coachFineStats().length > 0}
-          <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-            <div class="p-4 bg-slate-800 text-white flex items-center justify-between">
-              <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
-                <UserCheck class="w-4 h-4 text-teal-300" />
-                <span>Coaches Penalty Leaderboard</span>
-              </div>
-              <span class="text-[11px] text-slate-300">Coaching Staff</span>
-            </div>
-
-            <div class="divide-y divide-slate-100">
-              {#each coachFineStats() as item}
-                <div class="p-3.5 sm:px-5 flex items-center justify-between hover:bg-slate-50">
-                  <div>
-                    <div class="font-bold text-slate-900 text-xs sm:text-sm">
-                      {item.displayName}
-                    </div>
-                    <div class="text-[11px] text-slate-400">
-                      {item.person.role || "Coach"}
-                    </div>
-                  </div>
-                  <div class="text-right">
-                    <div class="font-black text-xs sm:text-sm text-slate-900">
-                      {item.totalAmount} kr
-                    </div>
-                    <div class="text-[11px] text-slate-400 font-medium">
-                      {item.count} {item.count === 1 ? 'fine' : 'fines'}
-                    </div>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          </div>
-        {/if}
       </div>
     {/if}
 
@@ -244,22 +198,23 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {#each dugnadStats().slice(0, 3) as item, index}
           {@const rankColors = [
-            "border-teal-400 bg-teal-50/50 text-teal-950",
-            "border-slate-300 bg-slate-50 text-slate-900",
-            "border-teal-700/30 bg-teal-50/30 text-teal-900"
-          ]}
-          {@const rankTitles = ["Top Contributor (1st)", "2nd Place", "3rd Place"]}
-          <div class="rounded-2xl border p-4 text-center shadow-xs {rankColors[index]}">
-            <div class="text-[11px] font-bold uppercase tracking-wider mb-1 opacity-80">
+  "border-black-400 bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-50 text-slate-900",
+  "border-black-400 bg-gradient-to-r from-slate-50 via-slate-200 to-slate-50 text-slate-900",
+  "border-black-400 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 text-slate-900"
+]}
+         {@const rankTitles = ["🥇", "🥈", "🥉"]}
+
+          <div class="rounded-2xl border p-2 pb-4 text-center shadow-xs {rankColors[index]}">
+            <div class="text-[20px] tracking-wider mb-0">
               {rankTitles[index]}
             </div>
-            <div class="text-base sm:text-lg font-black tracking-tight mb-0.5">
+            <div class="text-base sm:text-lg font-black tracking-tight">
               {item.displayName}
             </div>
-            <div class="text-xs text-slate-500 mb-2">
+            <div class="text-sm text-black mb-3">
               {item.player.role || "Player"} {item.player.number ? `(#${item.player.number})` : ""}
             </div>
-            <div class="text-xl sm:text-2xl font-black text-teal-950">
+            <div class="text-xl sm:text-2xl font-black text-black">
               {item.totalPoints} pts
             </div>
           </div>

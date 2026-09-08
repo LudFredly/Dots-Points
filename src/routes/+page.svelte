@@ -82,10 +82,7 @@
         class="flex-1 min-w-[130px] py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer {activeTab === 'leaderboard' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}"
       >
         <Trophy class="w-4 h-4 text-amber-400" />
-        <span>Standings</span>
-        {#if !settings.finePotPublished}
-          <Lock class="w-3 h-3 text-amber-400" />
-        {/if}
+        <span>Leaderboards</span>
       </button>
 
       <button

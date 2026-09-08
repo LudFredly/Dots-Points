@@ -25,7 +25,18 @@
   } = $props();
 
   const players = $derived(persons.filter(p => p.type === "player"));
-  const effectiveActivities = $derived(activities.length > 0 ? activities : DEFAULT_DUGNAD_ACTIVITIES);
+  const effectiveActivities = $derived(
+  [...(activities.length > 0 ? activities : DEFAULT_DUGNAD_ACTIVITIES)]
+    .sort((a, b) => {
+      // Per-hour activities first, sorted by points/hour descending
+      if (a.pointsType !== b.pointsType) {
+        return a.pointsType === "perHour" ? -1 : 1;
+      }
+
+      // Within each type, highest points first
+      return b.pointsPer - a.pointsPer;
+    })
+);
 
   let selectedPlayerId = $state("");
   let selectedActivity = $state(DEFAULT_DUGNAD_ACTIVITIES[0].title);
@@ -60,7 +71,7 @@
   );
 
   const travelPoints = $derived(
-    hadTravel ? Number((Math.max(0, travelHours) * 5).toFixed(1)) : 0
+    hadTravel ? Number((Math.max(0, travelHours) * 4).toFixed(1)) : 0
   );
 
   const totalCalculatedPoints = $derived(
@@ -74,6 +85,24 @@
   const selectedPlayer = $derived(
     players.find(p => p.id === selectedPlayerId)
   );
+
+  function formatHours(value: number): string {
+    const totalMinutes = Math.round(value * 60);
+    const wholeHours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (wholeHours === 0) return `${minutes}min`;
+    if (minutes === 0) return `${wholeHours}t`;
+    return `${wholeHours}hr ${minutes}min`;
+  }
+
+  function adjustHours(delta: number) {
+    hours = Math.min(24, Math.max(0.25, Number((hours + delta).toFixed(2))));
+  }
+
+  function adjustTravelHours(amount: number) {
+  travelHours = Math.min(24, Math.max(0.25, Number((travelHours + amount).toFixed(2))));
+  }
 
   function handleActivityChange(title: string) {
     selectedActivity = title;
@@ -172,7 +201,7 @@
           Log Club Duty
         </h2>
         <p class="text-xs sm:text-sm text-slate-400">
-          Record event hosting, kiosk shifts, hall rigging, and duty travel.
+          Record work that has been performed for the team/club.
         </p>
       </div>
     </div>
@@ -199,7 +228,6 @@
     <div class="space-y-2">
       <div class="flex items-center justify-between">
         <label for="dugnad-player-select" class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
-          <User class="w-4 h-4 text-teal-700" />
           <span>1. Who performed the club duty?</span>
           <span class="text-rose-500 font-bold">*</span>
         </label>
@@ -255,7 +283,7 @@
             </div>
 
             <div class="shrink-0 text-xs font-semibold px-2 py-1 rounded-md border {isSelected ? 'bg-teal-700 text-white border-teal-800' : 'bg-slate-100 text-slate-700 border-slate-200'}">
-              {act.pointsPer} pts/hr
+              {act.pointsPer} {act.pointsType === "fixed" ? "pts" : "pts/hr"}
             </div>
           </button>
         {/each}
@@ -275,42 +303,65 @@
 
     <!-- Step 3: Hours & Travel -->
     <div class="space-y-4 pt-3 border-t border-slate-100">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div
+        class:grid-cols-1={activeActivityObj?.pointsType === "fixed"}
+        class:grid-cols-2={activeActivityObj?.pointsType !== "fixed"}
+        class="grid gap-4"
+      >
+        {#if activeActivityObj?.pointsType !== "fixed"}
         <!-- Duty Hours Input -->
         <div class="space-y-1.5">
           <label for="hours-input" class="text-xs font-bold text-slate-700 flex items-center gap-1">
-            <Clock class="w-3.5 h-3.5 text-teal-700" />
             <span>Duty Hours Worked</span>
           </label>
           <div class="relative">
-            <input
+            <div
               id="hours-input"
-              type="number"
-              step="0.5"
-              min="0.5"
-              max="24"
-              bind:value={hours}
-              class="w-full h-10 pl-3.5 pr-24 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-sm focus:bg-white focus:ring-2 focus:ring-teal-200"
-            />
-            <span class="absolute right-10 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-500 pointer-events-none select-none">
-              hours
-            </span>
+              class="w-full h-10 px-3.5 pr-10 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-sm flex items-center"
+              aria-label="Duty Hours Worked"
+              role="spinbutton"
+              aria-valuemin="0.25"
+              aria-valuemax="24"
+              aria-valuenow={hours}
+            >
+              {formatHours(hours)}
+            </div>
+            <div class="absolute right-1 top-1 bottom-1 flex flex-col">
+              <button
+                type="button"
+                onclick={() => adjustHours(0.25)}
+                class="flex-1 w-8 flex items-center justify-center rounded-t-lg text-xs text-slate-500 hover:bg-slate-200 hover:text-slate-800 active:bg-slate-300 cursor-pointer"
+                aria-label="Increase duty hours by 15 minutes"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                onclick={() => adjustHours(-0.25)}
+                class="flex-1 w-8 flex items-center justify-center rounded-b-lg text-xs text-slate-500 hover:bg-slate-200 hover:text-slate-800 active:bg-slate-300 cursor-pointer"
+                aria-label="Decrease duty hours by 15 minutes"
+              >
+                ▼
+              </button>
+            </div>
           </div>
         </div>
+
+        {/if}
 
         <!-- Duty Points (Calculated) -->
         <div class="space-y-1.5">
           <div class="text-xs font-bold text-slate-700 flex items-center gap-1">
-            <Sparkles class="w-3.5 h-3.5 text-teal-600" />
             <span>Duty Points</span>
           </div>
           <div class="h-10 px-3 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-between text-teal-950 font-black text-sm">
             <span>{dutyPoints}</span>
-            <span class="text-xs font-medium text-teal-800">points ({activeActivityObj?.pointsPer || 10} pts/hr)</span>
+            <span class="text-xs font-medium text-teal-800">points </span>
           </div>
         </div>
       </div>
 
+      {#if activeActivityObj?.pointsType !== "fixed"}
       <!-- Travel Specific Option -->
       <div class="bg-slate-50/90 border border-slate-200/90 rounded-xl p-3.5 sm:p-4 space-y-3">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -321,7 +372,7 @@
                 I had to travel specifically to/from this club duty
               </div>
               <div class="text-[11px] text-slate-500">
-                Earn 5 pts per hour of required duty travel
+                Earn 4 pts per hour of required duty travel
               </div>
             </div>
           </div>
@@ -348,38 +399,50 @@
           <div class="pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="space-y-1">
               <label for="travel-hours-input" class="text-xs font-bold text-slate-700 flex items-center gap-1">
-                <Clock class="w-3.5 h-3.5 text-sky-600" />
                 <span>Travel Hours</span>
               </label>
               <div class="relative">
-                <input
-                  id="travel-hours-input"
-                  type="number"
-                  step="0.5"
-                  min="0.5"
-                  max="24"
-                  bind:value={travelHours}
-                  class="w-full h-10 pl-3.5 pr-24 bg-white border border-slate-300 rounded-xl text-slate-900 font-bold text-sm focus:ring-2 focus:ring-sky-200"
-                />
-                <span class="absolute right-10 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-500 pointer-events-none select-none">
-                  hours
-                </span>
+                <div class="relative">
+                  <div class="w-full h-10 pl-3.5 pr-14 bg-white border border-slate-300 rounded-xl text-slate-900 font-bold text-sm flex items-center">
+                    {formatHours(travelHours)}
+                  </div>
+
+                  <div class="absolute right-1 top-1 bottom-1 flex flex-col">
+                    <button
+                      type="button"
+                      onclick={() => adjustTravelHours(0.25)}
+                      class="flex-1 w-8 flex items-center justify-center rounded-t-lg text-xs text-slate-500 hover:bg-slate-200 hover:text-slate-800 active:bg-slate-300 cursor-pointer"
+                      aria-label="Increase travel hours by 15 minutes"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => adjustTravelHours(-0.25)}
+                      class="flex-1 w-8 flex items-center justify-center rounded-b-lg text-xs text-slate-500 hover:bg-slate-200 hover:text-slate-800 active:bg-slate-300 cursor-pointer"
+                      aria-label="Decrease travel hours by 15 minutes"
+                    >
+                      ▼
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div class="space-y-1">
               <div class="text-xs font-bold text-slate-700 flex items-center gap-1">
-                <Sparkles class="w-3.5 h-3.5 text-sky-600" />
                 <span>Travel Points Earned</span>
               </div>
               <div class="h-10 px-3 bg-sky-50 border border-sky-200 rounded-xl flex items-center justify-between text-sky-950 font-black text-sm">
                 <span>+{travelPoints}</span>
-                <span class="text-xs font-medium text-sky-800">5 pts/hr</span>
+                <span class="text-xs font-medium text-sky-800">points</span>
               </div>
             </div>
           </div>
         {/if}
       </div>
+
+      {/if}
 
       <!-- Comment -->
       <div>

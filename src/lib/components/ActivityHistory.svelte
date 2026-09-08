@@ -57,7 +57,7 @@
         kind: "dugnad",
         personName: getPersonDisplayNameById(d.playerId, d.playerName),
         title: d.activityType,
-        subtitle: d.comment ? `"${d.comment}" • ${d.hours} hours` : `${d.hours} hours registered`,
+        subtitle: d.comment ? `"${d.comment}" • ${d.hours} hour(s) registered` : `${d.hours} hour(s) registered`,
         value: `${d.points} pts`,
         date: d.date,
         status: d.status || "approved",
@@ -78,7 +78,7 @@
     if (!iso) return "";
     try {
       const d = new Date(iso);
-      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric"});
     } catch (e) {
       return iso;
     }
@@ -172,13 +172,13 @@
                 {entry.title}
               </div>
 
-              <div class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+              <div class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1 flex-wrap">
                 <span>{formatDate(entry.date)}</span>
-                {#if entry.reportedBy}
+                {#if entry.reportedBy && entry.reportedBy !== "Teammate"}
                   <span>• By {entry.reportedBy}</span>
                 {/if}
                 {#if entry.subtitle}
-                  <span class="truncate max-w-xs">• {entry.subtitle}</span>
+                  <span class="truncate max-w-xs">•  {entry.subtitle}</span>
                 {/if}
               </div>
             </div>
