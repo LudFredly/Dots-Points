@@ -28,5 +28,5 @@ For every player:
 - `totalFineSum`: Number (total fines in NOK)
 - `totalDugnadHours`: Number (total duty hours)
 - `totalDugnadPoints`: Number (total duty points)
-- `fines`: Array of all individual fine reports for this player (id, date, ruleIds, ruleTitles, totalFine, comment, reportedBy, eventContext, status, paid)
+- `fines`: Array of all individual fine reports for this player (id, date, ruleIds, ruleTitles, totalFine, comment, reportedBy, eventContext, status)
 - `dugnad`: Array of all individual dugnad entries for this player (id, date, activityType, hours, points, dutyHours, dutyPoints, hadTravel, travelHours, travelPoints, comment, status)

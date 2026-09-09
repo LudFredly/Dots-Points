@@ -37,8 +37,6 @@ export interface FineReport {
   date: string; // ISO string
   eventContext: OccasionType | string; // "Practice", "Match", "Social", "Other"
   status: "pending" | "approved" | "rejected";
-  paid?: boolean;
-  paidDate?: string;
 }
 
 export interface DugnadActivity {

@@ -273,6 +273,24 @@
   const sortedRules = $derived(
     [...rules].sort((a, b) => getMinRate(a) - getMinRate(b) || a.title.localeCompare(b.title))
   );
+  // Sort roster: coaches first, then alphabetically by last name and first name
+  const sortedPersons = $derived(
+    [...persons].sort((a, b) => {
+      // Coaches first
+      if (a.type !== b.type) {
+        return a.type === "coach" ? -1 : 1;
+      }
+
+      // Alphabetically by last name
+      const lastNameCompare = a.lastName.localeCompare(b.lastName);
+      if (lastNameCompare !== 0) {
+        return lastNameCompare;
+      }
+
+      // Then by first name
+      return a.firstName.localeCompare(b.firstName);
+    })
+  );
 
   // Total approved fine pot
   const approvedTotalFines = $derived(
@@ -349,7 +367,6 @@
   let editFineAmount = $state<number>(0);
   let editFineEventContext = $state<string>("Practice");
   let editFineStatus = $state<"approved" | "pending" | "rejected">("approved");
-  let editFinePaid = $state<boolean>(false);
   let editFineComment = $state("");
   let isSavingFine = $state(false);
 
@@ -413,7 +430,6 @@
     editFineAmount = fine.totalFine;
     editFineEventContext = fine.eventContext || "Practice";
     editFineStatus = fine.status || "approved";
-    editFinePaid = Boolean(fine.paid);
     editFineComment = fine.comment || "";
   }
 
@@ -431,7 +447,6 @@
         totalFine: Number(editFineAmount),
         eventContext: editFineEventContext,
         status: editFineStatus,
-        paid: editFinePaid,
         comment: editFineComment.trim()
       });
 
@@ -697,16 +712,16 @@
 <div class="space-y-6">
   <!-- Toast / Notification Banner -->
   {#if bannerMessage}
-    <div class="p-4 rounded-xl border flex items-center justify-between gap-3 shadow-md {bannerMessage.type === 'success' ? 'bg-emerald-900 text-emerald-100 border-emerald-700' : 'bg-rose-900 text-rose-100 border-rose-700'}">
+    <div class="p-4 rounded-xl border flex items-center justify-between gap-3 shadow-md {bannerMessage.type === 'success' ? 'bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] border-[var(--ntnui-green)]' : 'bg-[var(--ntnui-red)] text-white border-[var(--ntnui-red)]'}">
       <div class="flex items-center gap-2.5 text-xs sm:text-sm font-semibold">
         {#if bannerMessage.type === 'success'}
-          <CheckCircle2 class="w-4 h-4 text-emerald-400 shrink-0" />
+          <CheckCircle2 class="w-4 h-4 text-[var(--ntnui-black-dark)] shrink-0" />
         {:else}
-          <AlertCircle class="w-4 h-4 text-rose-400 shrink-0" />
+          <AlertCircle class="w-4 h-4 text-[var(--ntnui-black-dark)] shrink-0" />
         {/if}
         <span>{bannerMessage.text}</span>
       </div>
-      <button type="button" onclick={() => bannerMessage = null} class="text-white/60 hover:text-white cursor-pointer">
+      <button type="button" onclick={() => bannerMessage = null} class="text-[var(--ntnui-black-dark)] hover:text-white cursor-pointer">
         <X class="w-4 h-4" />
       </button>
     </div>
@@ -714,23 +729,23 @@
 
   {#if !isUnlocked}
     <!-- Admin Access Key Gate (URL key or manual fallback entry) -->
-    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 sm:p-8 max-w-md mx-auto text-center space-y-5">
-      <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-inner">
+    <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black)]/15 p-6 sm:p-8 max-w-md mx-auto text-center space-y-5">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-[var(--ntnui-green)]/10 text-[var(--ntnui-green)] flex items-center justify-center border border-[var(--ntnui-green)]/20 shadow-inner">
         <Lock class="w-7 h-7" />
       </div>
 
       <div>
-        <h2 class="text-xl font-bold text-slate-900 tracking-tight">
+        <h2 class="text-xl font-bold text-[var(--ntnui-black-dark)] tracking-tight">
           Admin-adgang kreves
         </h2>
-        <p class="text-xs sm:text-sm text-slate-500 mt-1.5 leading-relaxed">
-          Oppgi din <strong>ADMIN_ACCESS_KEY</strong> for å låse opp administrasjonspanelet, eller åpne via din admin-URL (<code class="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono text-xs">/admin?key=...</code>).
+        <p class="text-xs sm:text-sm text-[var(--ntnui-black-light)] mt-1.5 leading-relaxed">
+          Oppgi din <strong>ADMIN_ACCESS_KEY</strong> for å låse opp administrasjonspanelet, eller åpne via din admin-URL (<code class="text-[var(--ntnui-green)] bg-[var(--ntnui-green)]/10 px-1.5 py-0.5 rounded font-mono text-xs">/admin?key=...</code>).
         </p>
       </div>
 
       <form onsubmit={handleAdminLogin} class="space-y-4 text-left">
         <div>
-          <label for="admin-key-input" class="block text-xs font-bold text-slate-700 mb-1.5">
+          <label for="admin-key-input" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1.5">
             Admin Access Key
           </label>
           <div class="relative">
@@ -740,12 +755,12 @@
               bind:value={adminKeyInput}
               required
               placeholder="Skriv inn din ADMIN_ACCESS_KEY..."
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-mono pr-10"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-[var(--ntnui-black)]/15 focus:outline-none focus:ring-2 focus:ring-[var(--ntnui-green)] text-sm font-mono pr-10"
             />
             <button
               type="button"
               onclick={() => showPassword = !showPassword}
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] cursor-pointer"
               title={showPassword ? "Skjul" : "Vis"}
             >
               <Eye class="w-4 h-4" />
@@ -754,8 +769,8 @@
         </div>
 
         {#if authError}
-          <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-start gap-2">
-            <AlertCircle class="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+          <div class="p-3 rounded-xl bg-[var(--ntnui-red)]/10 border border-[var(--ntnui-red)]/30 text-[var(--ntnui-red)] text-xs font-medium flex items-start gap-2">
+            <AlertCircle class="w-4 h-4 shrink-0 mt-0.5 text-[var(--ntnui-red)]" />
             <span>{authError}</span>
           </div>
         {/if}
@@ -763,7 +778,7 @@
         <button
           type="submit"
           disabled={isLoggingIn || !adminKeyInput.trim()}
-          class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+          class="w-full py-2.5 bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 disabled:opacity-50 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
         >
           {#if isLoggingIn}
             <RefreshCw class="w-4 h-4 animate-spin" />
@@ -776,11 +791,11 @@
       </form>
 
       {#if onExitAdmin}
-        <div class="pt-2 border-t border-slate-100">
+        <div class="pt-2 border-t border-[var(--ntnui-black)]/10">
           <button
             type="button"
             onclick={onExitAdmin}
-            class="w-full py-2 text-slate-500 hover:text-slate-800 font-semibold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            class="w-full py-2 text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] font-semibold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
           >
             <LogOut class="w-3.5 h-3.5" />
             <span>Tilbake til hovedportalen</span>
@@ -788,59 +803,34 @@
         </div>
       {/if}
 
-      <div class="pt-2 border-t border-slate-100 text-[11px] text-slate-400 text-center">
-        Sikret med separat VITE_ADMIN_ACCESS_KEY
+      <div class="pt-2 border-t border-[var(--ntnui-black)]/10 text-[11px] text-[var(--ntnui-black-light)] text-center">
+        Secured with separate VITE_ADMIN_ACCESS_KEY
       </div>
     </div>
   {:else}
     <!-- Authenticated Admin Header Banner -->
-    <div class="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-md border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div class="bg-[var(--ntnui-red)] shadow-sm text-[var(--ntnui-black-dark)] rounded-2xl p-5 sm:p-6 shadow-md border border-[var(--ntnui-black-dark)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <div class="flex items-center gap-2">
-          <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
-          <span class="text-xs uppercase font-extrabold tracking-wider text-emerald-400">
+          <span class="text-xs uppercase font-extrabold tracking-wider text-[var(--ntnui-black-dark)]">
             {settings?.teamName || 'H4A'} {settings?.season || '26/27'} Admin Console
           </span>
         </div>
-        <h2 class="text-lg sm:text-xl font-bold text-white mt-1">
-          Team Management & Approval Headquarters
+        <h2 class="text-lg sm:text-xl font-bold text-[var(--ntnui-black-dark)] mt-1">
+          Team Management HQ
         </h2>
-        <div class="text-xs text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
-          <span class="text-emerald-400 font-medium">Adgang godkjent via admin-nøkkel</span>
-          {#if h4aStore.isConfigured}
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700 text-[11px] font-semibold">
-              <ShieldCheck class="w-3 h-3 text-emerald-400" />
-              <span>Firestore-skriving aktiv</span>
-            </span>
-          {/if}
+        <div class="text-xs text-[var(--ntnui-red)] mt-1 flex items-center gap-2 flex-wrap">
+          <span class="text-[var(--ntnui-black-dark)] font-medium">Access granted via the admin-key</span>
         </div>
       </div>
 
       <div class="flex items-center gap-2 flex-wrap">
-        <!-- Live Pot Status in Admin -->
-        <div class="flex items-center gap-3 bg-slate-800/90 border border-slate-700/80 px-4 py-2 rounded-xl">
-          <div>
-            <div class="text-[10px] uppercase font-bold text-slate-400">
-              Fine Pot Status ({settings.finePotPublished ? 'Published' : 'Hidden'})
-            </div>
-            <div class="text-base sm:text-lg font-black text-emerald-400">
-              {approvedTotalFines} kr <span class="text-xs text-slate-400 font-normal">({approvedTotalPoints} duty pts)</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onclick={toggleFinePotPublication}
-            class="px-2.5 py-1 text-xs font-bold rounded-lg cursor-pointer transition-all {settings.finePotPublished ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-amber-500 hover:bg-amber-400 text-slate-950'}"
-          >
-            {settings.finePotPublished ? 'Make Hidden' : 'Publish'}
-          </button>
-        </div>
 
         <!-- Exit / Sign Out Admin Button -->
         <button
           type="button"
           onclick={handleExitAdmin}
-          class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-300 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+          class="px-3.5 py-2 rounded-xl bg-white hover:bg-white/80 text-[var(--ntnui-black-dark)] border border-[var(--ntnui-black-dark)] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
           title="Sign out of admin mode and return to main site"
         >
           <LogOut class="w-3.5 h-3.5" />
@@ -850,15 +840,18 @@
     </div>
 
     <!-- Admin Navigation Tabs -->
-    <div class="bg-slate-900 p-1.5 rounded-2xl shadow-sm border border-slate-800 flex items-center gap-1 overflow-x-auto text-xs sm:text-sm font-bold">
+    <div class="bg-white p-1.5 rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] flex items-center gap-1 overflow-x-auto text-xs sm:text-sm font-bold">
+
       <button
         type="button"
         onclick={() => adminTab = "pending"}
-        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'pending' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
+        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 min-w-fit {adminTab === 'pending'
+          ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
+          : 'text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
       >
         <span>Pending Queue</span>
         {#if pendingTotalCount > 0}
-          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
+          <span class="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-[var(--ntnui-red)] text-white">
             {pendingTotalCount}
           </span>
         {/if}
@@ -867,31 +860,39 @@
       <button
         type="button"
         onclick={() => adminTab = "roster"}
-        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'roster' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
+        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 min-w-fit {adminTab === 'roster'
+          ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
+          : 'text-[var(--ntnui-black-dark)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
       >
-        <span>Team Roster ({persons.length})</span>
+        <span>Team Roster</span>
       </button>
 
       <button
         type="button"
         onclick={() => adminTab = "rules"}
-        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'rules' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
+        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 min-w-fit {adminTab === 'rules'
+          ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
+          : 'text-[var(--ntnui-black-dark)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
       >
-        <span>Fine Rules ({rules.length})</span>
+        <span>Fine Rules</span>
       </button>
 
       <button
         type="button"
         onclick={() => adminTab = "dugnad_rates"}
-        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'dugnad_rates' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
+        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 min-w-fit {adminTab === 'dugnad_rates'
+          ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
+          : 'text-[var(--ntnui-black-dark)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
       >
-        <span>Club Duty Activities ({activeDugnadActivities.length})</span>
+        <span>Club Duties</span>
       </button>
 
       <button
         type="button"
         onclick={() => adminTab = "duty_leaderboard"}
-        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'duty_leaderboard' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
+        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 min-w-fit {adminTab === 'duty_leaderboard'
+          ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
+          : 'text-[var(--ntnui-black-dark)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
       >
         <span>Due for Duty</span>
       </button>
@@ -899,7 +900,9 @@
       <button
         type="button"
         onclick={() => adminTab = "records"}
-        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'records' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
+        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 flex-1 min-w-fit {adminTab === 'records'
+          ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
+          : 'text-[var(--ntnui-black-dark)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
       >
         <span>Records</span>
       </button>
@@ -907,57 +910,60 @@
       <button
         type="button"
         onclick={() => adminTab = "settings"}
-        class="px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 {adminTab === 'settings' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'}"
+        class="w-11 shrink-0 px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 {adminTab === 'settings'
+          ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
+          : 'text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
+        aria-label="Settings"
       >
-        <Settings class="w-4 h-4 text-slate-300" />
+        <Settings class="w-4 h-4" />
       </button>
+
     </div>
 
     <!-- TAB 1: PENDING QUEUE -->
     {#if adminTab === "pending"}
       <div class="space-y-6">
         <!-- Pending Fines -->
-        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-          <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+        <div class="bg-white rounded-2xl shadow-xs shadow-xs border-1 border-[var(--ntnui-black-dark)] overflow-hidden">
+          <div class="p-4 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex items-center justify-center">
             <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
-              <ShieldAlert class="w-4 h-4 text-amber-400" />
               <span>Pending Fine Reports ({pendingFines.length})</span>
             </div>
           </div>
 
-          <div class="divide-y divide-slate-100">
+          <div class="divide-y divide-[var(--ntnui-black)]/10">
             {#if pendingFines.length === 0}
-              <div class="p-8 text-center text-slate-400 text-xs sm:text-sm">
+              <div class="p-8 text-center text-[var(--ntnui-black-light)] text-xs sm:text-sm">
                 No pending fine submissions awaiting review.
               </div>
             {:else}
               {#each pendingFines as fine}
                 {@const person = persons.find(p => p.id === fine.playerId)}
-                <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50">
+                <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-[var(--ntnui-black)]/5">
                   <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                      <span class="font-bold text-slate-900 text-sm">
+                      <span class="font-bold text-[var(--ntnui-black-dark)] text-sm">
                         {person ? getAdminFullName(person) : fine.playerName}
                       </span>
-                      <span class="text-xs font-black text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                      <span class="text-xs font-black text-[var(--ntnui-red)] bg-[var(--ntnui-red)]/10 px-2 py-0.5 rounded border border-[var(--ntnui-red)]/30">
                         {fine.totalFine} kr
                       </span>
-                      <span class="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                      <span class="text-[11px] font-semibold text-[var(--ntnui-black-light)] bg-[var(--ntnui-black)]/5 px-2 py-0.5 rounded">
                         {fine.eventContext}
                       </span>
                     </div>
 
-                    <div class="text-xs text-slate-600 mt-1 font-medium">
+                    <div class="text-xs text-[var(--ntnui-black-light)] mt-1 font-medium">
                       {fine.ruleTitles.join(", ")}
                     </div>
 
                     {#if fine.comment}
-                      <div class="text-xs text-slate-500 italic mt-0.5">
+                      <div class="text-xs text-[var(--ntnui-black-light)] italic mt-0.5">
                         "{fine.comment}"
                       </div>
                     {/if}
 
-                    <div class="text-[11px] text-slate-400 mt-1">
+                    <div class="text-[11px] text-[var(--ntnui-black-light)] mt-1">
                       Reported by: {fine.reportedBy || 'Anonymous'} • {new Date(fine.date).toLocaleDateString()}
                     </div>
                   </div>
@@ -967,10 +973,9 @@
                     <button
                       type="button"
                       onclick={() => openEditFine(fine)}
-                      class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1 cursor-pointer"
+                      class="p-1.5 text-xs font-semibold rounded-lg bg-[var(--ntnui-black)]/5 hover:bg-[var(--ntnui-black)]/10 text-[var(--ntnui-black-dark)] flex items-center gap-1 cursor-pointer"
                     >
                       <Edit3 class="w-3.5 h-3.5" />
-                      <span>Edit</span>
                     </button>
 
                     <button
@@ -979,7 +984,7 @@
                         await onRejectFine(fine.id);
                         notify("Fine submission rejected.");
                       }}
-                      class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 flex items-center gap-1 cursor-pointer"
+                      class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--ntnui-red)]/10 hover:bg-[var(--ntnui-red)]/15 text-[var(--ntnui-red)] flex items-center gap-1 cursor-pointer"
                     >
                       <XCircle class="w-3.5 h-3.5" />
                       <span>Reject</span>
@@ -991,7 +996,7 @@
                         await onApproveFine(fine.id);
                         notify(`Approved fine of ${fine.totalFine} kr for ${fine.playerName}`);
                       }}
-                      class="px-4 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      class="px-4 py-1.5 text-xs font-bold rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <CheckCircle2 class="w-4 h-4" />
                       <span>Approve</span>
@@ -1004,45 +1009,44 @@
         </div>
 
         <!-- Pending Dugnad / Club Duty -->
-        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-          <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+        <div class="bg-white rounded-2xl shadow-xs shadow-xs border border-[var(--ntnui-black-dark)] overflow-hidden">
+          <div class="p-4 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex items-center justify-center">
             <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
-              <HeartHandshake class="w-4 h-4 text-teal-400" />
               <span>Pending Club Duty Logs ({pendingDugnad.length})</span>
             </div>
           </div>
 
-          <div class="divide-y divide-slate-100">
+          <div class="divide-y divide-[var(--ntnui-black)]/10">
             {#if pendingDugnad.length === 0}
-              <div class="p-8 text-center text-slate-400 text-xs sm:text-sm">
+              <div class="p-8 text-center text-[var(--ntnui-black-light)] text-xs sm:text-sm">
                 No pending club duty entries awaiting review.
               </div>
             {:else}
               {#each pendingDugnad as dug}
                 {@const person = persons.find(p => p.id === dug.playerId)}
-                <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50">
+                <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-[var(--ntnui-black)]/5">
                   <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                      <span class="font-bold text-slate-900 text-sm">
+                      <span class="font-bold text-[var(--ntnui-black-dark)] text-sm">
                         {person ? getAdminFullName(person) : dug.playerName}
                       </span>
-                      <span class="text-xs font-black text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                      <span class="text-xs font-black text-[var(--ntnui-green)] bg-[var(--ntnui-green)]/10 px-2 py-0.5 rounded border border-[var(--ntnui-green)]/30">
                         {dug.points} pts
                       </span>
                       {#if dug.hadTravel}
-                        <span class="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 flex items-center gap-1">
+                        <span class="text-[10px] font-bold text-[var(--ntnui-green)] bg-[var(--ntnui-green)]/10 px-2 py-0.5 rounded border border-[var(--ntnui-green)]/30 flex items-center gap-1">
                           <Navigation class="w-3 h-3" />
                           <span>Includes travel (+{dug.travelPoints || 0} pts)</span>
                         </span>
                       {/if}
                     </div>
 
-                    <div class="text-xs font-semibold text-slate-800 mt-1">
+                    <div class="text-xs font-semibold text-[var(--ntnui-black-dark)] mt-1">
                       {dug.activityType}
                     </div>
 
                     {#if dug.comment}
-                      <div class="text-xs text-slate-500 italic mt-0.5">
+                      <div class="text-xs text-[var(--ntnui-black-light)] italic mt-0.5">
                         "{dug.comment}"
                       </div>
                     {/if}
@@ -1053,10 +1057,9 @@
                     <button
                       type="button"
                       onclick={() => openEditDugnad(dug)}
-                      class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1 cursor-pointer"
+                      class="p-1.5 text-xs font-semibold rounded-lg bg-[var(--ntnui-black)]/5 hover:bg-[var(--ntnui-black)]/10 text-[var(--ntnui-black-dark)] flex items-center gap-1 cursor-pointer"
                     >
                       <Edit3 class="w-3.5 h-3.5" />
-                      <span>Edit</span>
                     </button>
 
                     <button
@@ -1065,7 +1068,7 @@
                         await onRejectDugnad(dug.id);
                         notify("Club duty entry rejected.");
                       }}
-                      class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 flex items-center gap-1 cursor-pointer"
+                      class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--ntnui-red)]/10 hover:bg-[var(--ntnui-red)]/15 text-[var(--ntnui-red)] flex items-center gap-1 cursor-pointer"
                     >
                       <XCircle class="w-3.5 h-3.5" />
                       <span>Reject</span>
@@ -1077,7 +1080,7 @@
                         await onApproveDugnad(dug.id);
                         notify(`Approved ${dug.points} pts for ${dug.playerName}`);
                       }}
-                      class="px-4 py-1.5 text-xs font-bold rounded-lg bg-teal-600 hover:bg-teal-500 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      class="px-4 py-1.5 text-xs font-bold rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <CheckCircle2 class="w-4 h-4" />
                       <span>Approve</span>
@@ -1092,13 +1095,13 @@
 
     <!-- TAB 2: ROSTER & OVERVIEW -->
     {:else if adminTab === "roster"}
-      <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden space-y-4">
-        <div class="p-4 sm:p-5 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="bg-white rounded-2xl shadow-xs shadow-xs border-1 border-[var(--ntnui-black-dark)] overflow-hidden">
+        <div class="p-4 sm:p-5 bg-[var(--ntnui-green)] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 class="text-base sm:text-lg font-bold text-white tracking-tight">
-              Team Roster & Individual Stats
+            <h3 class="text-base sm:text-lg font-bold text-[var(--ntnui-black-dark)] tracking-tight">
+              Team Roster & Individual Stats ({persons.length} )
             </h3>
-            <p class="text-xs text-slate-400">
+            <p class="text-xs text-[var(--ntnui-black-dark)]/85">
               Manage your team's roster. Add or remove players and coaches, or change specific stats.
             </p>
           </div>
@@ -1106,7 +1109,7 @@
           <button
             type="button"
             onclick={() => isAddPersonOpen = true}
-            class="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+            class="px-3.5 py-2 rounded-xl bg-white border border-[var(--ntnui-black-dark)] hover:bg-white/60 text-[var(--ntnui-black-dark)] font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
           >
             <UserPlus class="w-4 h-4" />
             <span>Add Person</span>
@@ -1115,47 +1118,47 @@
 
         <!-- Add Person Form (Inline collapsible) -->
         {#if isAddPersonOpen}
-          <form onsubmit={handleAddPersonSubmit} class="p-4 bg-slate-50 border-y border-slate-200 space-y-4">
+          <form onsubmit={handleAddPersonSubmit} class="p-4 bg-[var(--ntnui-black)]/5 border-y border-[var(--ntnui-black)]/15">
             <div class="flex items-center justify-between">
-              <h4 class="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
-                <UserPlus class="w-4 h-4 text-emerald-600" />
+              <h4 class="text-xs sm:text-sm font-bold text-[var(--ntnui-black-dark)] flex items-center gap-2">
+                <UserPlus class="w-4 h-4 text-[var(--ntnui-green)]" />
                 <span>Add New Team Member / Staff</span>
               </h4>
-              <button type="button" onclick={() => isAddPersonOpen = false} class="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <button type="button" onclick={() => isAddPersonOpen = false} class="text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] cursor-pointer">
                 <X class="w-4 h-4" />
               </button>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs sm:text-sm">
               <div>
-                <label for="adm-first-name" class="block text-xs font-bold text-slate-700 mb-1">First Name *</label>
+                <label for="adm-first-name" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">First Name *</label>
                 <input
                   id="adm-first-name"
                   type="text"
                   placeholder="e.g. Henrik"
                   bind:value={newPersonFirstName}
                   required
-                  class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-emerald-200"
+                  class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
                 />
               </div>
 
               <div>
-                <label for="adm-last-name" class="block text-xs font-bold text-slate-700 mb-1">Last Name</label>
+                <label for="adm-last-name" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Last Name</label>
                 <input
                   id="adm-last-name"
                   type="text"
                   placeholder="e.g. Hansen"
                   bind:value={newPersonLastName}
-                  class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-emerald-200"
+                  class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
                 />
               </div>
 
               <div>
-                <label for="adm-person-type" class="block text-xs font-bold text-slate-700 mb-1">Role Type</label>
+                <label for="adm-person-type" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Role Type</label>
                 <select
                   id="adm-person-type"
                   bind:value={newPersonType}
-                  class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-emerald-200"
+                  class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-medium focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
                 >
                   <option value="player">Player</option>
                   <option value="coach">Coach / Staff</option>
@@ -1163,24 +1166,24 @@
               </div>
 
               <div>
-                <label for="adm-person-role" class="block text-xs font-bold text-slate-700 mb-1">Position / Title</label>
+                <label for="adm-person-role" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Position / Title</label>
                 <input
                   id="adm-person-role"
                   type="text"
                   placeholder="e.g. Setter"
                   bind:value={newPersonRole}
-                  class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-emerald-200"
+                  class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
                 />
               </div>
 
               <div>
-                <label for="adm-person-num" class="block text-xs font-bold text-slate-700 mb-1">Jersey #</label>
+                <label for="adm-person-num" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Jersey #</label>
                 <input
                   id="adm-person-num"
                   type="number"
                   placeholder="4"
                   bind:value={newPersonNumber}
-                  class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-emerald-200"
+                  class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
                 />
               </div>
             </div>
@@ -1189,13 +1192,13 @@
               <button
                 type="button"
                 onclick={() => isAddPersonOpen = false}
-                class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                class="px-3 py-1.5 rounded-lg border border-[var(--ntnui-black)]/30 bg-white text-xs font-semibold text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-black)]/5 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+                class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
               >
                 Save Member
               </button>
@@ -1206,99 +1209,111 @@
         <!-- Persons Table -->
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs sm:text-sm">
-            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[11px] tracking-wider">
+            <thead class="bg-[var(--ntnui-black)]/5 border-b border-[var(--ntnui-black)]/15 text-[var(--ntnui-black)] font-bold uppercase text-[11px] tracking-wider">
               <tr>
                 <th class="p-3.5 pl-5">Full Name</th>
                 <th class="p-3.5">Type</th>
                 <th class="p-3.5">Position</th>
                 <th class="p-3.5">Jersey</th>
-                <th class="p-3.5 text-right">Fines Sum</th>
-                <th class="p-3.5 text-right">Club Duty</th>
-                <th class="p-3.5 text-right pr-5">Actions</th>
+                <th class="p-3.5">Fines Sum</th>
+                <th class="p-3.5">Club Duty</th>
+                <th class="p-3.5 pr-5">Actions</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
-              {#each persons as p}
+
+            <tbody class="divide-y divide-[var(--ntnui-black)]/10">
+              {#each sortedPersons as p}
                 {@const pFines = fines.filter(f => f.playerId === p.id && f.status === 'approved')}
                 {@const pFineSum = pFines.reduce((sum, f) => sum + (f.totalFine || 0), 0)}
                 {@const pDug = dugnad.filter(d => d.playerId === p.id && d.status === 'approved')}
                 {@const pDugHours = pDug.reduce((sum, d) => sum + (d.hours || 0), 0)}
                 {@const pDugPoints = pDug.reduce((sum, d) => sum + (d.points || 0), 0)}
-                <tr class="hover:bg-slate-50/80 transition-colors">
-                  <td class="p-3.5 pl-5 font-bold text-slate-900">
+
+                <tr class="hover:bg-[var(--ntnui-black)]/5 transition-colors">
+
+                  <td class="p-3.5 pl-5 font-bold text-[var(--ntnui-black-dark)]">
                     {getAdminFullName(p)}
                   </td>
+
                   <td class="p-3.5">
-                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full {p.type === 'coach' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700'}">
-                      {p.type === 'coach' ? 'Coach' : 'Player'}
-                    </span>
-                  </td>
-                  <td class="p-3.5 text-slate-600">
-                    {p.role || "Player"}
-                  </td>
-                  <td class="p-3.5 font-mono font-bold text-slate-700">
-                    {p.number !== undefined ? `#${p.number}` : "-"}
-                  </td>
-                  <td class="p-3.5 text-right font-black text-emerald-900">
-                    <button
-                      type="button"
-                      onclick={() => openEditPerson(p)}
-                      class="hover:underline text-emerald-900 hover:text-emerald-700 inline-flex flex-col items-end cursor-pointer group"
-                      title="Click to edit fines sum directly"
-                    >
-                      <span class="flex items-center gap-1 font-black">
-                        {pFineSum} kr
-                        <Edit3 class="w-3 h-3 text-slate-400 group-hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div class="flex items-center">
+                      <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--ntnui-black)]/10 text-[var(--ntnui-black-dark)]">
+                        {p.type === 'coach' ? 'Coach' : 'Player'}
                       </span>
-                      <span class="text-[11px] font-normal text-slate-400">
+                    </div>
+                  </td>
+
+                  <td class="p-3.5">
+                    <div class="flex items-center">
+                      <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--ntnui-black)]/10 text-[var(--ntnui-black-dark)]">
+                        {p.role || "Player"}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td class="p-3.5 font-mono font-bold">
+                    <div class="flex items-center">
+                      <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--ntnui-black)]/10 text-[var(--ntnui-black-dark)]">
+                        {p.number !== undefined ? `#${p.number}` : "-"}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td class="p-3.5">
+                    <div class="flex flex-col items-start justify-center">
+                      <span class="font-black text-[var(--ntnui-black-dark)]">
+                        {pFineSum} kr
+                      </span>
+                      <span class="text-[11px] font-normal text-[var(--ntnui-black-light)]">
                         {pFines.length} fines
                       </span>
-                    </button>
+                    </div>
                   </td>
-                  <td class="p-3.5 text-right font-black text-teal-900">
+
+                  <td class="p-3.5">
                     {#if p.type === 'player'}
-                      <button
-                        type="button"
-                        onclick={() => openEditPerson(p)}
-                        class="hover:underline text-teal-900 hover:text-teal-700 inline-flex flex-col items-end cursor-pointer group"
-                        title="Click to edit club duty points directly"
-                      >
-                        <span class="flex items-center gap-1 font-black">
+                      <div class="flex flex-col items-start justify-center">
+                        <span class="font-black text-[var(--ntnui-black-dark)]">
                           {pDugPoints} pts
-                          <Edit3 class="w-3 h-3 text-slate-400 group-hover:text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </span>
-                        <span class="text-[11px] font-normal text-slate-400">
-                          {pDug.length} {pDug.length === 1 ? 'godkjent' : 'godkjente'}
+                        <span class="text-[11px] font-normal text-[var(--ntnui-black-light)]">
+                          {pDug.length} {pDug.length === 1 ? 'duty' : 'duties'}
                         </span>
-                      </button>
+                      </div>
                     {:else}
-                      <span class="text-slate-400 italic text-xs font-normal">Excluded</span>
+                      <span class="text-[var(--ntnui-black-dark)] italic text-xs font-normal">
+                        Excluded
+                      </span>
                     {/if}
                   </td>
-                  <td class="p-3.5 text-right pr-5">
-                    <div class="flex items-center justify-end gap-1.5">
+
+                  <td class="p-3.5 pr-5">
+                    <div class="flex items-center justify-start gap-1.5">
                       <button
                         type="button"
                         onclick={() => openEditPerson(p)}
-                        class="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                        class="p-1.5 rounded-lg bg-[var(--ntnui-black)]/5 hover:bg-[var(--ntnui-black)]/10 text-[var(--ntnui-black-dark)] cursor-pointer flex items-center gap-1 text-xs font-semibold"
                         title="Edit person details, fines sum & duty points"
                       >
                         <Edit3 class="w-3.5 h-3.5" />
-                        <span class="hidden md:inline">Edit</span>
                       </button>
+
                       <button
                         type="button"
                         onclick={() => {
-                          onRemovePerson(p.id);
-                          notify(`Removed ${getAdminFullName(p)} from roster`);
+                          if (confirm(`Are you sure you want to remove ${getAdminFullName(p)} from the roster?`)) {
+                            onRemovePerson(p.id);
+                            notify(`Removed ${getAdminFullName(p)} from roster`);
+                          }
                         }}
-                        class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer"
+                        class="p-1.5 rounded-lg bg-[var(--ntnui-red)]/10 hover:bg-[var(--ntnui-red)]/15 text-[var(--ntnui-red)] cursor-pointer"
                         title="Remove person"
                       >
                         <Trash2 class="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
+
                 </tr>
               {/each}
             </tbody>
@@ -1306,109 +1321,48 @@
         </div>
       </div>
 
-    <!-- TAB: REVERSED CLUB DUTY LEADERBOARD -->
+    <!-- TAB: CLUB DUTY LOOSERBOARD -->
     {:else if adminTab === "duty_leaderboard"}
       <div class="space-y-6">
-        <div class="bg-slate-900 text-white p-5 sm:p-6 rounded-2xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div class="flex items-center gap-2 text-teal-400 text-xs font-bold uppercase tracking-wider">
-              <HeartHandshake class="w-4 h-4" />
-              <span>Admin Oversikt • Gjenstående dugnad</span>
-            </div>
-            <h3 class="text-lg sm:text-xl font-black text-white mt-1">
-              Club Duty Leaderboard (Minst dugnad først)
-            </h3>
-            <p class="text-xs text-slate-400 mt-1">
-              Viser hvem som har gjort minst dugnad og har størst gjenstående forpliktelse.
-            </p>
-          </div>
-          <div class="bg-slate-800/90 border border-slate-700/80 px-4 py-2.5 rounded-xl text-right">
-            <div class="text-[10px] uppercase font-bold text-slate-400">Godkjent dugnad totalt</div>
-            <div class="text-base sm:text-lg font-black text-teal-400">
-              {approvedTotalPoints} pts
-            </div>
-          </div>
-        </div>
-
-        <!-- Highlight Podiums for Least Points / Highest Obligation -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {#each adminDutyLeaderboard().slice(0, 3) as item, index}
-            {@const rankStyles = [
-              "border-rose-400 bg-rose-50/70 text-rose-950",
-              "border-amber-300 bg-amber-50/70 text-amber-950",
-              "border-slate-300 bg-slate-50 text-slate-900"
-            ]}
-            {@const rankTitles = [
-              "Størst gjenstående forpliktelse (#1)",
-              "2. minst dugnad (#2)",
-              "3. minst dugnad (#3)"
-            ]}
-            <div class="rounded-2xl border p-4 text-center shadow-xs {rankStyles[index]}">
-              <div class="text-[11px] font-bold uppercase tracking-wider mb-1 opacity-80">
-                {rankTitles[index]}
-              </div>
-              <div class="text-base sm:text-lg font-black tracking-tight mb-0.5">
-                {item.displayName}
-              </div>
-              <div class="text-xs text-slate-600 mb-2">
-                {item.person.role || "Player"} {item.person.number ? `(#${item.person.number})` : ""}
-              </div>
-              <div class="text-xl sm:text-2xl font-black">
-                {item.totalPoints} pts
-              </div>
-              <div class="text-[11px] opacity-75 mt-1">
-                {item.count} {item.count === 1 ? 'godkjent dugnad' : 'godkjente dugnader'}
-              </div>
-            </div>
-          {/each}
-        </div>
 
         <!-- Full Duty Table -->
-        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-          <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
-            <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
-              <HeartHandshake class="w-4 h-4 text-teal-400" />
-              <span>Fullstendig dugnadsliste (Reversert rangering)</span>
-            </div>
-            <span class="text-xs text-slate-400 font-medium">
-              {adminDutyLeaderboard().length} spillere
-            </span>
+        <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] overflow-hidden">
+          <div class="p-4 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex items-center justify-center">
+          <div class="text-lg sm:text-xl font-bold flex items-center justify-center gap-2">
+            <span>Club Duty Looserboard</span>
           </div>
+        </div>
 
-          <div class="divide-y divide-slate-100">
+          <div class="divide-y divide-[var(--ntnui-black)]/10">
             {#each adminDutyLeaderboard() as item, idx}
-              <div class="p-3.5 sm:px-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+              {@const lowestPoints = adminDutyLeaderboard()[0]?.totalPoints}
+
+              <div class="p-3.5 sm:px-5 flex items-center justify-between hover:bg-[var(--ntnui-black)]/5 transition-colors">
                 <div class="flex items-center gap-3">
-                  <span class="w-6 text-center font-bold text-xs {idx === 0 ? 'text-rose-600 font-black' : idx < 3 ? 'text-amber-600 font-black' : 'text-slate-400'}">
-                    #{idx + 1}
+                  <span class="w-6 text-center font-bold text-xs text-[var(--ntnui-black-dark)]">
+                    {item.totalPoints === lowestPoints ? '#1' : `#${idx + 1}`}
                   </span>
+
                   <div>
-                    <div class="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                    <div class="font-bold text-xs sm:text-sm flex items-center gap-1.5 {item.totalPoints === lowestPoints ? 'text-[var(--ntnui-red)]' : 'text-[var(--ntnui-black-dark)]'}">
                       <span>{item.displayName}</span>
                       {#if item.person.type === 'coach'}
-                        <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">Coach</span>
+                        <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[var(--ntnui-black)]/5 text-[var(--ntnui-black-dark)] border border-[var(--ntnui-black)]/15">
+                          Coach
+                        </span>
                       {/if}
                     </div>
-                    <div class="text-[11px] text-slate-400">
+                    <div class="text-[11px] text-[var(--ntnui-black-light)]">
                       {item.person.role || "Player"} {item.person.number ? `• #${item.person.number}` : ""} • {item.count} {item.count === 1 ? 'dugnad' : 'dugnader'}
                     </div>
                   </div>
                 </div>
                 <div class="flex items-center gap-3">
                   <div class="text-right">
-                    <div class="font-black text-xs sm:text-sm text-teal-900">
+                    <div class="font-black text-xs sm:text-sm text-[var(--ntnui-green)]">
                       {item.totalPoints} pts
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onclick={() => openEditPerson(item.person)}
-                    class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer flex items-center gap-1"
-                    title="Juster poeng for {item.displayName}"
-                  >
-                    <Edit3 class="w-3 h-3" />
-                    <span class="hidden sm:inline">Juster</span>
-                  </button>
                 </div>
               </div>
             {/each}
@@ -1418,66 +1372,66 @@
 
     <!-- TAB 3: FINE RULES & OCCASIONS -->
     {:else if adminTab === "rules"}
-      <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden space-y-4">
-        <div class="p-4 sm:p-5 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="bg-white rounded-2xl shadow-xs border-1 border-[var(--ntnui-black-dark)] overflow-hidden">
+        <div class="p-4 sm:p-5 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 class="text-base sm:text-lg font-bold text-white tracking-tight">
-              Fine Rules & Occasions
+            <h3 class="text-base sm:text-lg font-bold text-[var(--ntnui-black-dark)] tracking-tight">
+              Fine Rules & Occasions  ({rules.length})
             </h3>
-            <p class="text-xs text-slate-400">
-              Manage penalties. Each rule must have at least one occasion (Match, Practice, or Social) and an accompanying amount. Unset occasions do not show during fine reporting.
+            <p class="text-xs text-[var(--ntnui-black-dark)]/85">
+              Manage penalties. Each rule must have at least one occasion (Match, Practice, or Social) and an accompanying amount.
             </p>
           </div>
 
           <button
             type="button"
             onclick={() => isAddRuleOpen = true}
-            class="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+            class="px-3.5 py-2 rounded-xl bg-white hover:bg-white/60 text-[var(--ntnui-black-dark)] font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
           >
-            <Plus class="w-4 h-4" />
+            <Plus class="w-4 h-4 shrink-0" />
             <span>New Fine Rule</span>
           </button>
         </div>
 
         <!-- Add Rule Form -->
         {#if isAddRuleOpen}
-          <form onsubmit={handleAddRuleSubmit} class="p-4 bg-slate-50 border-y border-slate-200 space-y-4">
+          <form onsubmit={handleAddRuleSubmit} class="p-4 bg-[var(--ntnui-black)]/5 border-y border-[var(--ntnui-black)]/15">
             <div class="flex items-center justify-between">
-              <h4 class="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Plus class="w-4 h-4 text-emerald-600" />
+              <h4 class="text-xs sm:text-sm font-bold text-[var(--ntnui-black-dark)] flex items-center gap-2">
+                <Plus class="w-4 h-4 text-[var(--ntnui-green)]" />
                 <span>Add New Fine Rule</span>
               </h4>
-              <button type="button" onclick={() => isAddRuleOpen = false} class="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <button type="button" onclick={() => isAddRuleOpen = false} class="text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] cursor-pointer">
                 <X class="w-4 h-4" />
               </button>
             </div>
 
             <div class="space-y-3 text-xs sm:text-sm">
               <div>
-                <label for="adm-rule-title" class="block text-xs font-bold text-slate-700 mb-1">Rule Title *</label>
+                <label for="adm-rule-title" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Rule Title *</label>
                 <input
                   id="adm-rule-title"
                   type="text"
                   placeholder="e.g. Late for warm-up / team call-up"
                   bind:value={newRuleTitle}
                   required
-                  class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-emerald-200 font-medium"
+                  class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
                 />
               </div>
 
               <!-- Occasion-Specific Amounts (Mandatory) -->
-              <div class="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2">
+              <div class="p-3.5 bg-white rounded-xl border border-[var(--ntnui-black)]/15 space-y-2">
                 <div>
-                  <span class="block text-xs font-bold text-slate-800">
+                  <span class="block text-xs font-bold text-[var(--ntnui-black-dark)]">
                     Occasion Amounts *
                   </span>
-                  <span class="block text-[11px] text-slate-500 italic mt-0.5">
+                  <span class="block text-[11px] text-[var(--ntnui-black-light)] italic mt-0.5">
                     * Leave empty or 0 if this rule does not apply to that occasion.
                   </span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
                   <div>
-                    <label for="adm-match-rate" class="block text-[11px] font-bold text-slate-700 mb-1">Match (kr)</label>
+                    <label for="adm-match-rate" class="block text-[11px] font-bold text-[var(--ntnui-black-dark)] mb-1">Match (kr)</label>
                     <input
                       id="adm-match-rate"
                       type="number"
@@ -1485,11 +1439,11 @@
                       min="0"
                       placeholder="e.g. 50"
                       bind:value={newRuleFineMatch}
-                      class="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-md text-slate-900 text-xs font-bold"
+                      class="w-full px-2.5 py-1.5 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-md text-[var(--ntnui-black-dark)] text-xs font-bold"
                     />
                   </div>
                   <div>
-                    <label for="adm-practice-rate" class="block text-[11px] font-bold text-slate-700 mb-1">Practice (kr)</label>
+                    <label for="adm-practice-rate" class="block text-[11px] font-bold text-[var(--ntnui-black-dark)] mb-1">Practice (kr)</label>
                     <input
                       id="adm-practice-rate"
                       type="number"
@@ -1497,11 +1451,11 @@
                       min="0"
                       placeholder="e.g. 50"
                       bind:value={newRuleFinePractice}
-                      class="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-md text-slate-900 text-xs font-bold"
+                      class="w-full px-2.5 py-1.5 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-md text-[var(--ntnui-black-dark)] text-xs font-bold"
                     />
                   </div>
                   <div>
-                    <label for="adm-social-rate" class="block text-[11px] font-bold text-slate-700 mb-1">Social (kr)</label>
+                    <label for="adm-social-rate" class="block text-[11px] font-bold text-[var(--ntnui-black-dark)] mb-1">Social (kr)</label>
                     <input
                       id="adm-social-rate"
                       type="number"
@@ -1509,20 +1463,20 @@
                       min="0"
                       placeholder="e.g. 50"
                       bind:value={newRuleFineSocial}
-                      class="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-md text-slate-900 text-xs font-bold"
+                      class="w-full px-2.5 py-1.5 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-md text-[var(--ntnui-black-dark)] text-xs font-bold"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label for="adm-rule-desc" class="block text-xs font-bold text-slate-700 mb-1">Description (optional)</label>
+                <label for="adm-rule-desc" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Description (optional)</label>
                 <input
                   id="adm-rule-desc"
                   type="text"
                   placeholder="Explanation of when this fine is applied"
                   bind:value={newRuleDescription}
-                  class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-emerald-200"
+                  class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
                 />
               </div>
             </div>
@@ -1531,13 +1485,13 @@
               <button
                 type="button"
                 onclick={() => isAddRuleOpen = false}
-                class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                class="px-3 py-1.5 rounded-lg border border-[var(--ntnui-black)]/30 bg-white text-xs font-semibold text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-black)]/5 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+                class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
               >
                 Save Rule
               </button>
@@ -1546,39 +1500,39 @@
         {/if}
 
         <!-- Rules List -->
-        <div class="divide-y divide-slate-100">
+        <div class="divide-y divide-[var(--ntnui-black)]/10">
           {#each sortedRules as rule}
-            <div class="p-4 sm:px-5 flex items-center justify-between gap-3 hover:bg-slate-50">
+            <div class="p-4 sm:px-5 flex items-center justify-between gap-3 hover:bg-[var(--ntnui-black)]/5">
               <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
-                  <span class="font-bold text-slate-900 text-xs sm:text-sm">
+                  <span class="font-bold text-[var(--ntnui-black-dark)] text-xs sm:text-sm">
                     {rule.title}
                   </span>
                 </div>
                 {#if rule.description}
-                  <div class="text-xs text-slate-500 mt-0.5">
+                  <div class="text-xs text-[var(--ntnui-black-dark)]/85 mt-0.5">
                     {rule.description}
                   </div>
                 {/if}
                 <div class="flex items-center gap-2 mt-1.5 text-[11px] font-medium flex-wrap">
-                  <span class="text-slate-500 font-semibold">Occasions:</span>
+                  <span class="text-[var(--ntnui-black-light)] font-semibold">Occasions:</span>
                   {#if rule.fineMatch != null && rule.fineMatch > 0}
-                    <span class="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded border border-emerald-200 font-bold">
+                    <span class="px-2 py-0.5 bg-[var(--ntnui-green)]/10 text-[var(--ntnui-green)] rounded border border-[var(--ntnui-green)]/30 font-bold">
                       Match: {rule.fineMatch} kr
                     </span>
                   {/if}
                   {#if rule.finePractice != null && rule.finePractice > 0}
-                    <span class="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded border border-emerald-200 font-bold">
+                    <span class="px-2 py-0.5 bg-[var(--ntnui-green)]/10 text-[var(--ntnui-green)] rounded border border-[var(--ntnui-green)]/30 font-bold">
                       Practice: {rule.finePractice} kr
                     </span>
                   {/if}
                   {#if rule.fineSocial != null && rule.fineSocial > 0}
-                    <span class="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded border border-emerald-200 font-bold">
+                    <span class="px-2 py-0.5 bg-[var(--ntnui-green)]/10 text-[var(--ntnui-green)] rounded border border-[var(--ntnui-green)]/30 font-bold">
                       Social: {rule.fineSocial} kr
                     </span>
                   {/if}
                   {#if (rule.fineMatch == null || rule.fineMatch <= 0) && (rule.finePractice == null || rule.finePractice <= 0) && (rule.fineSocial == null || rule.fineSocial <= 0)}
-                    <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 font-bold">
+                    <span class="px-2 py-0.5 bg-[var(--ntnui-black)]/5 text-[var(--ntnui-black-dark)] rounded border border-[var(--ntnui-black)]/15 font-bold">
                       Standard: {rule.fine || 0} kr
                     </span>
                   {/if}
@@ -1589,7 +1543,7 @@
                 <button
                   type="button"
                   onclick={() => openEditRule(rule)}
-                  class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                  class="p-1.5 rounded-lg bg-[var(--ntnui-black)]/5 hover:bg-[var(--ntnui-black)]/10 text-[var(--ntnui-black-dark)] cursor-pointer"
                   title="Edit rule"
                 >
                   <Edit3 class="w-3.5 h-3.5" />
@@ -1598,10 +1552,12 @@
                 <button
                   type="button"
                   onclick={() => {
-                    onDeleteFineRule(rule.id);
-                    notify(`Deleted rule "${rule.title}"`);
+                    if (confirm(`Are you sure you want to delete the fine rule "${rule.title}"?`)) {
+                      onDeleteFineRule(rule.id);
+                      notify(`Deleted rule "${rule.title}"`);
+                    }
                   }}
-                  class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer"
+                  class="p-1.5 rounded-lg bg-[var(--ntnui-red)]/10 hover:bg-[var(--ntnui-red)]/15 text-[var(--ntnui-red)] cursor-pointer"
                   title="Delete rule"
                 >
                   <Trash2 class="w-3.5 h-3.5" />
@@ -1616,14 +1572,13 @@
     {:else if adminTab === "dugnad_rates"}
       <div class="space-y-6">
         <!-- Duty Activities Catalog & Custom Rates -->
-        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden space-y-4">
-          <div class="p-4 sm:p-5 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] overflow-hidden">
+          <div class="p-4 sm:p-5 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 class="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
-                <HeartHandshake class="w-5 h-5 text-teal-400" />
-                <span>Club Duty Activities & Rates ({activeDugnadActivities.length})</span>
+              <h3 class="text-base sm:text-lg font-bold text-[var(--ntnui-black-dark)] tracking-tight flex items-center gap-2">
+                <span>Club Duty Activities ({activeDugnadActivities.length})</span>
               </h3>
-              <p class="text-xs text-slate-400 mt-0.5">
+              <p class="text-xs text-[var(--ntnui-black-dark)]/85 mt-0.5">
                 Manage club duties, standard durations, and points awarded.
               </p>
             </div>
@@ -1631,7 +1586,7 @@
             <button
               type="button"
               onclick={() => isAddDugnadActivityOpen = true}
-              class="px-3.5 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              class="px-3.5 py-2 rounded-xl bg-white hover:bg-white/60 text-[var(--ntnui-black-dark)] font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
             >
               <Plus class="w-4 h-4" />
               <span>Add Duty Activity</span>
@@ -1640,36 +1595,36 @@
 
           <!-- Add Dugnad Activity Form -->
           {#if isAddDugnadActivityOpen}
-            <form onsubmit={handleAddDugnadActivitySubmit} class="p-4 bg-slate-50 border-y border-slate-200 space-y-4">
+            <form onsubmit={handleAddDugnadActivitySubmit} class="p-4 bg-[var(--ntnui-black)]/5 border-y border-[var(--ntnui-black)]/15">
               <div class="flex items-center justify-between">
-                <h4 class="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Plus class="w-4 h-4 text-teal-600" />
+                <h4 class="text-xs sm:text-sm font-bold text-[var(--ntnui-black-dark)] flex items-center gap-2">
+                  <Plus class="w-4 h-4 text-[var(--ntnui-green)]" />
                   <span>Add New Duty Activity & Rate</span>
                 </h4>
-                <button type="button" onclick={() => isAddDugnadActivityOpen = false} class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <button type="button" onclick={() => isAddDugnadActivityOpen = false} class="text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] cursor-pointer">
                   <X class="w-4 h-4" />
                 </button>
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs sm:text-sm">
                 <div class="sm:col-span-2">
-                  <label for="new-act-title" class="block text-xs font-bold text-slate-700 mb-1">Activity Title *</label>
+                  <label for="new-act-title" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Activity Title *</label>
                   <input
                     id="new-act-title"
                     type="text"
                     placeholder="e.g. Hall Rigging & Net Setup"
                     bind:value={newDugnadActTitle}
                     required
-                    class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-teal-200 font-medium"
+                    class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
                   />
                 </div>
 
                 <div>
-                  <label for="new-act-type" class="block text-xs font-bold text-slate-700 mb-1">Point Type *</label>
+                  <label for="new-act-type" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Point Type *</label>
                   <select
                     id="new-act-type"
                     bind:value={newDugnadActPointsType}
-                    class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-teal-200 font-medium"
+                    class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
                   >
                     <option value="perHour">Per hour</option>
                     <option value="fixed">Fixed</option>
@@ -1678,7 +1633,7 @@
 
                 {#if newDugnadActPointsType === "perHour"}
                 <div>
-                  <label for="new-act-hours" class="block text-xs font-bold text-slate-700 mb-1">Standard Duration (Hours)</label>
+                  <label for="new-act-hours" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Standard Duration (Hours)</label>
                   <input
                     id="new-act-hours"
                     type="number"
@@ -1686,13 +1641,13 @@
                     min="0.5"
                     max="24"
                     bind:value={newDugnadActDefaultHours}
-                    class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-teal-200 font-medium"
+                    class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
                   />
                 </div>
                 {/if}
 
                 <div>
-                  <label for="new-act-rate" class="block text-xs font-bold text-slate-700 mb-1">Points ({newDugnadActPointsType === "fixed" ? "fixed" : "per hour"}) *</label>
+                  <label for="new-act-rate" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Points ({newDugnadActPointsType === "fixed" ? "fixed" : "per hour"}) *</label>
                   <input
                     id="new-act-rate"
                     type="number"
@@ -1700,7 +1655,7 @@
                     min="1"
                     bind:value={newDugnadActpointsPer}
                     required
-                    class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-teal-200 font-medium"
+                    class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
                   />
                 </div>
               </div>
@@ -1709,13 +1664,13 @@
                 <button
                   type="button"
                   onclick={() => isAddDugnadActivityOpen = false}
-                  class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                  class="px-3 py-1.5 rounded-lg border border-[var(--ntnui-black)]/30 bg-white text-xs font-semibold text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-black)]/5 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  class="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+                  class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
                 >
                   Save Activity Rate
                 </button>
@@ -1724,15 +1679,15 @@
           {/if}
 
           <!-- Activities Table -->
-          <div class="divide-y divide-slate-100">
+          <div class="divide-y divide-[var(--ntnui-black)]/10">
             {#each activeDugnadActivities as act}
-              <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50">
+              <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[var(--ntnui-black)]/5">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
-                    <span class="font-bold text-slate-900 text-xs sm:text-sm">
+                    <span class="font-bold text-[var(--ntnui-black-dark)] text-xs sm:text-sm">
                       {act.title}
                     </span>
-                    <span class="text-xs font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                    <span class="text-xs font-black text-[var(--ntnui-green)] bg-[var(--ntnui-green)]/10 px-2 py-0.5 rounded border border-[var(--ntnui-green)]/30">
                       {act.pointsPer} {act.pointsType === "fixed" ? "pts fixed" : "pts / hr"}
                     </span>
                   </div>
@@ -1742,19 +1697,20 @@
                   <button
                     type="button"
                     onclick={() => openEditDugnadActivity(act)}
-                    class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1 cursor-pointer"
+                    class="p-1.5 text-xs font-semibold rounded-lg bg-[var(--ntnui-black)]/5 hover:bg-[var(--ntnui-black)]/10 text-[var(--ntnui-black-dark)] flex items-center gap-1 cursor-pointer"
                   >
                     <Edit3 class="w-3.5 h-3.5" />
-                    <span>Edit Rate</span>
                   </button>
 
                   <button
                     type="button"
                     onclick={() => {
-                      onDeleteDugnadActivity?.(act.id);
-                      notify(`Deleted activity "${act.title}"`);
+                      if (confirm(`Are you sure you want to delete the club duty activity "${act.title}"?`)) {
+                        onDeleteDugnadActivity?.(act.id);
+                        notify(`Deleted activity "${act.title}"`);
+                      }
                     }}
-                    class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer"
+                    class="p-1.5 rounded-lg bg-[var(--ntnui-red)]/10 hover:bg-[var(--ntnui-red)]/15 text-[var(--ntnui-red)] cursor-pointer"
                     title="Delete activity"
                   >
                     <Trash2 class="w-3.5 h-3.5" />
@@ -1769,35 +1725,34 @@
     <!-- TAB 5: ALL APPROVED RECORDS -->
     {:else if adminTab === "records"}
       <div class="space-y-6">
-        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-          <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+        <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] overflow-hidden">
+          <div class="p-4 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex items-center justify-center">
             <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
-              <ShieldAlert class="w-4 h-4 text-emerald-400" />
               <span>Approved Fines ({fines.filter(f => f.status === 'approved').length})</span>
             </div>
-            <div class="text-xs text-emerald-400 font-bold">
+            <div class="text-xs text-[var(--ntnui-green)] font-bold">
               Total: {approvedTotalFines} kr
             </div>
           </div>
 
-          <div class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+          <div class="divide-y divide-[var(--ntnui-black)]/10 max-h-96 overflow-y-auto">
             {#each fines.filter(f => f.status === 'approved') as fine}
               {@const person = persons.find(p => p.id === fine.playerId)}
-              <div class="p-3.5 sm:px-5 flex items-center justify-between gap-3 hover:bg-slate-50">
+              <div class="p-3.5 sm:px-5 flex items-center justify-between gap-3 hover:bg-[var(--ntnui-black)]/5">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
-                    <span class="font-bold text-slate-900 text-xs sm:text-sm">
+                    <span class="font-bold text-[var(--ntnui-black-dark)] text-xs sm:text-sm">
                       {person ? getAdminFullName(person) : fine.playerName}
                     </span>
-                    <span class="font-bold text-emerald-800 text-xs">
+                    <span class="font-bold text-[var(--ntnui-green)] text-xs">
                       {fine.totalFine} kr
                     </span>
                   </div>
-                  <div class="text-xs text-slate-600">
+                  <div class="text-xs text-[var(--ntnui-black-light)]">
                     {fine.ruleTitles.join(", ")}
                   </div>
                   {#if fine.comment}
-                    <div class="text-[11px] text-slate-400 italic">
+                    <div class="text-[11px] text-[var(--ntnui-black-light)] italic">
                       "{fine.comment}"
                     </div>
                   {/if}
@@ -1807,7 +1762,7 @@
                   <button
                     type="button"
                     onclick={() => openEditFine(fine)}
-                    class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                    class="p-1.5 rounded-lg bg-[var(--ntnui-black)]/5 hover:bg-[var(--ntnui-black)]/10 text-[var(--ntnui-black-dark)] cursor-pointer"
                     title="Edit fine"
                   >
                     <Edit3 class="w-3.5 h-3.5" />
@@ -1815,10 +1770,12 @@
                   <button
                     type="button"
                     onclick={async () => {
-                      await onRejectFine(fine.id);
-                      notify("Deleted fine record.");
+                      if (confirm("Are you sure you want to delete this fine record?")) {
+                        await onRejectFine(fine.id);
+                        notify("Deleted fine record.");
+                      }
                     }}
-                    class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer"
+                    class="p-1.5 rounded-lg bg-[var(--ntnui-red)]/10 hover:bg-[var(--ntnui-red)]/15 text-[var(--ntnui-red)] cursor-pointer"
                     title="Delete fine"
                   >
                     <Trash2 class="w-3.5 h-3.5" />
@@ -1830,40 +1787,39 @@
         </div>
 
         <!-- Approved Dugnad -->
-        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-          <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+        <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] overflow-hidden">
+          <div class="p-4 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex items-center justify-center">
             <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
-              <HeartHandshake class="w-4 h-4 text-teal-400" />
-              <span>Approved Club Duty ({dugnad.filter(d => d.status === 'approved').length})</span>
+              <span>Approved Club Duties ({dugnad.filter(d => d.status === 'approved').length})</span>
             </div>
-            <div class="text-xs text-teal-400 font-bold">
+            <div class="text-xs text-[var(--ntnui-green)] font-bold">
               Total: {approvedTotalPoints} pts
             </div>
           </div>
 
-          <div class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+          <div class="divide-y divide-[var(--ntnui-black)]/10 max-h-96 overflow-y-auto">
             {#each dugnad.filter(d => d.status === 'approved') as entry}
               {@const person = persons.find(p => p.id === entry.playerId)}
-              <div class="p-3.5 sm:px-5 flex items-center justify-between gap-3 hover:bg-slate-50">
+              <div class="p-3.5 sm:px-5 flex items-center justify-between gap-3 hover:bg-[var(--ntnui-black)]/5">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
-                    <span class="font-bold text-slate-900 text-xs sm:text-sm">
+                    <span class="font-bold text-[var(--ntnui-black-dark)] text-xs sm:text-sm">
                       {person ? getAdminFullName(person) : entry.playerName}
                     </span>
-                    <span class="font-bold text-teal-800 text-xs">
+                    <span class="font-bold text-[var(--ntnui-green)] text-xs">
                       {entry.points} pts
                     </span>
                     {#if entry.hadTravel}
-                      <span class="text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200">
+                      <span class="text-[10px] font-bold text-[var(--ntnui-yellow)] bg-[var(--ntnui-yellow)]/10 px-1.5 py-0.2 rounded border border-[var(--ntnui-yellow)]/50">
                         +{entry.travelPoints || 0} pts travel
                       </span>
                     {/if}
                   </div>
-                  <div class="text-xs text-slate-600">
+                  <div class="text-xs text-[var(--ntnui-black-light)]">
                     {entry.activityType}
                   </div>
                   {#if entry.comment}
-                    <div class="text-[11px] text-slate-400 italic">
+                    <div class="text-[11px] text-[var(--ntnui-black-light)] italic">
                       "{entry.comment}"
                     </div>
                   {/if}
@@ -1873,7 +1829,7 @@
                   <button
                     type="button"
                     onclick={() => openEditDugnad(entry)}
-                    class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                    class="p-1.5 rounded-lg bg-[var(--ntnui-black)]/5 hover:bg-[var(--ntnui-black)]/10 text-[var(--ntnui-black-dark)] cursor-pointer"
                     title="Edit duty record"
                   >
                     <Edit3 class="w-3.5 h-3.5" />
@@ -1881,10 +1837,12 @@
                   <button
                     type="button"
                     onclick={async () => {
-                      await onRejectDugnad(entry.id);
-                      notify("Deleted duty record.");
+                      if (confirm("Are you sure you want to delete this duty record?")) {
+                        await onRejectDugnad(entry.id);
+                        notify("Deleted duty record.");
+                      }
                     }}
-                    class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer"
+                    class="p-1.5 rounded-lg bg-[var(--ntnui-red)]/10 hover:bg-[var(--ntnui-red)]/15 text-[var(--ntnui-red)] cursor-pointer"
                     title="Delete duty record"
                   >
                     <Trash2 class="w-3.5 h-3.5" />
@@ -1901,59 +1859,59 @@
       <div class="space-y-6">
 
         <!-- SETTINGS -->
-        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 space-y-6">
+        <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] p-6 space-y-6 text-center">
           <div>
-            <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+            <h3 class="text-base sm:text-lg font-bold text-[var(--ntnui-black-dark)] tracking-tight">
               Portal & Season Configuration
             </h3>
-            <p class="text-xs text-slate-500">
+            <p class="text-xs text-[var(--ntnui-black-dark)]/85">
               Manage privacy, publication switches, and team details. Changes to Team Name and Season propagate immediately across the entire site.
             </p>
           </div>
 
           <!-- Publication Big Box -->
-          <div class="p-5 rounded-2xl border-2 {settings.finePotPublished ? 'border-emerald-500 bg-emerald-50/50' : 'border-amber-400 bg-amber-50/50'} space-y-3">
-            <div class="flex items-start justify-between gap-4">
+            <div class="p-5 rounded-2xl border-2 {settings.finePotPublished ? 'border-[var(--ntnui-green)] bg-[var(--ntnui-green)]/10/50' : 'border-[var(--ntnui-yellow)] bg-[var(--ntnui-yellow)]/10'} space-y-4">
               <div>
-                <div class="text-xs font-bold uppercase tracking-wider {settings.finePotPublished ? 'text-emerald-800' : 'text-amber-800'}">
+                <div class="text-xs font-bold uppercase tracking-wider {settings.finePotPublished ? 'text-[var(--ntnui-green)]' : 'text-[var(--ntnui-black-dark)]'}">
                   Penalty Pot & Leaderboards Privacy
                 </div>
-                <div class="text-base font-black text-slate-900 mt-0.5">
+
+                <div class="text-base font-black text-[var(--ntnui-black-dark)] mt-0.5">
                   {#if settings.finePotPublished}
                     Fine Pot is currently PUBLISHED to all team members
                   {:else}
                     Fine Pot is currently HIDDEN (displays "??? kr")
                   {/if}
                 </div>
-                <p class="text-xs text-slate-600 mt-1 max-w-xl">
-                  When hidden, the total fine pot in the header and the penalty leaderboard are concealed from public view. Toggle on when you are ready to reveal the results before a preparty.
-                </p>
-              </div>
 
-              <button
-                type="button"
-                onclick={toggleFinePotPublication}
-                class="px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all shadow-xs cursor-pointer shrink-0 {settings.finePotPublished ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-amber-500 hover:bg-amber-400 text-slate-950'}"
-              >
-                {#if settings.finePotPublished}
-                  <span class="flex items-center gap-1.5">
-                    <Unlock class="w-4 h-4" />
-                    <span>Switch to Hidden</span>
-                  </span>
-                {:else}
-                  <span class="flex items-center gap-1.5">
-                    <Lock class="w-4 h-4" />
-                    <span>Publish Leaderboards</span>
-                  </span>
-                {/if}
-              </button>
+                <p class="text-xs text-[var(--ntnui-black-dark)]/85 mt-1">
+                  When hidden, the total fine pot in the header and the penalty leaderboard are concealed from public view.<br>Toggle on when you are ready to reveal the results before a preparty.
+                </p>
+
+                <button
+                  type="button"
+                  onclick={toggleFinePotPublication}
+                  class="mt-3 px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all shadow-xs cursor-pointer {settings.finePotPublished ? 'bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white' : 'bg-[var(--ntnui-yellow)] hover:bg-[var(--ntnui-yellow)]/90 text-[var(--ntnui-black-dark)]'}"
+                >
+                  {#if settings.finePotPublished}
+                    <span class="flex items-center gap-1.5">
+                      <Unlock class="w-4 h-4" />
+                      <span>Switch to Hidden</span>
+                    </span>
+                  {:else}
+                    <span class="flex items-center gap-1.5">
+                      <Lock class="w-4 h-4" />
+                      <span>Publish Leaderboards</span>
+                    </span>
+                  {/if}
+                </button>
+              </div>
             </div>
-          </div>
 
           <!-- Season Settings Form -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-200">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-[var(--ntnui-black)]/15">
             <div>
-              <label for="set-team-name" class="block text-xs font-bold text-slate-700 mb-1">
+              <label for="set-team-name" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">
                 Team Name
               </label>
               <input
@@ -1967,12 +1925,12 @@
                   onUpdateSettings({ teamName: settings.teamName });
                   notify("Updated team name.");
                 }}
-                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs sm:text-sm"
+                class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-xl text-[var(--ntnui-black-dark)] font-bold text-xs sm:text-sm"
               />
             </div>
 
             <div>
-              <label for="set-team-season" class="block text-xs font-bold text-slate-700 mb-1">
+              <label for="set-team-season" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">
                 Season
               </label>
               <input
@@ -1986,49 +1944,49 @@
                   onUpdateSettings({ season: settings.season });
                   notify("Updated season.");
                 }}
-                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs sm:text-sm"
+                class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-xl text-[var(--ntnui-black-dark)] font-bold text-xs sm:text-sm"
               />
             </div>
           </div>
 
           <!-- Reset / Danger Zone -->
-          <div class="pt-6 border-t border-slate-200 flex items-center justify-between">
-            <div>
-              <div class="text-xs font-bold text-slate-900">
-                Reset Sample Data
-              </div>
-              <div class="text-[11px] text-slate-500">
-                Restore initial team roster, fine rules, and sample entries.
+            <div class="pt-6 border-t border-[var(--ntnui-black)]/15">
+              <div>
+                <div class="text-xs font-bold text-[var(--ntnui-black-dark)]">
+                  Reset Sample Data
+                </div>
+
+                <div class="text-[11px] text-[var(--ntnui-black-dark)]/85">
+                  Restore initial team roster, fine rules, and sample entries.
+                </div>
+
+                <button
+                  type="button"
+                  onclick={() => {
+                    if (confirm("Are you sure you want to reset all data to the default sample data? This will overwrite the current team data.")) {
+                      onResetData();
+                      notify("Reset all data to defaults.");
+                    }
+                  }}
+                  class="mt-3 px-3.5 py-1.5 rounded-lg border border-[var(--ntnui-black)]/30 bg-white hover:bg-[var(--ntnui-black)]/5 text-xs font-semibold text-[var(--ntnui-black-dark)] inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw class="w-3.5 h-3.5" />
+                  <span>Reset Defaults</span>
+                </button>
               </div>
             </div>
-
-            <button
-              type="button"
-              onclick={() => {
-                onResetData();
-                notify("Reset all data to defaults.");
-              }}
-              class="px-3.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-xs font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer"
-            >
-              <RefreshCw class="w-3.5 h-3.5" />
-              <span>Reset Defaults</span>
-            </button>
-          </div>
         </div>
 
         <!-- BACKUP & DATA -->
         <div class="space-y-6">
           <!-- Intro Banner -->
-          <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 space-y-2">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <Database class="w-5 h-5" />
-              </div>
+          <div class="bg-[var(--ntnui-green)] rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] p-6 space-y-2 text-center">
+            <div class="flex items-center justify-center">
               <div>
-                <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                <h3 class="text-base sm:text-lg font-bold text-[var(--ntnui-black-dark)] tracking-tight">
                   Data Storage & Backup
                 </h3>
-                <p class="text-xs text-slate-500">
+                <p class="text-xs text-[var(--ntnui-black-dark)]">
                   Export complete team data to a portable JSON backup, or restore and update the database from a previously exported backup.
                 </p>
               </div>
@@ -2039,55 +1997,55 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             <!-- CARD 1: EXPORT -->
-            <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between space-y-6">
+            <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] p-6 flex flex-col justify-between space-y-6">
               <div class="space-y-4">
                 <div class="flex items-center justify-between">
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--ntnui-green)]/10 text-[var(--ntnui-green)] border border-[var(--ntnui-green)]/30">
                     <Download class="w-3.5 h-3.5" />
                     <span>Offline Backup</span>
                   </span>
-                  <span class="text-xs text-slate-400 font-medium">Portable JSON Format</span>
+                  <span class="text-xs text-[var(--ntnui-black-light)] font-medium">Portable JSON Format</span>
                 </div>
 
                 <div>
-                  <h4 class="text-base font-bold text-slate-900">
+                  <h4 class="text-base font-bold text-[var(--ntnui-black-dark)]">
                     Export Team Data
                   </h4>
-                  <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Download a complete JSON file containing all players, positions, jerseys, approved and pending fines, club duties, fine rules, and season settings. The file can be stored as a backup or saved as <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">data/team-data.json</code> in the repository.
+                  <p class="text-xs text-[var(--ntnui-black-dark)]/85 mt-1 leading-relaxed">
+                    Download a complete JSON file containing all players, positions, jerseys, approved and pending fines, club duties, fine rules, and season settings. The file can be stored as a backup or saved as <code class="bg-[var(--ntnui-black)]/5 px-1 py-0.5 rounded text-[var(--ntnui-black-dark)] font-mono text-[11px]">data/team-data.json</code> in the repository.
                   </p>
                 </div>
 
                 <!-- Data scope counts -->
-                <div class="grid grid-cols-4 gap-2.5 p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                <div class="grid grid-cols-4 gap-2.5 p-3.5 bg-[var(--ntnui-black)]/5 rounded-xl border border-[var(--ntnui-black)]/10 text-center">
                   <div>
-                    <div class="text-base sm:text-lg font-black text-slate-900">
+                    <div class="text-base sm:text-lg font-black text-[var(--ntnui-black-dark)]">
                       {persons.filter(p => p.type === "player").length}
                     </div>
-                    <div class="text-[10px] uppercase font-bold text-slate-500">Players</div>
+                    <div class="text-[10px] uppercase font-bold text-[var(--ntnui-black-light)]">Players</div>
                   </div>
 
                   <div>
-                    <div class="text-base sm:text-lg font-black text-slate-900">
+                    <div class="text-base sm:text-lg font-black text-[var(--ntnui-black-dark)]">
                       {persons.filter(p => p.type === "coach").length}
                     </div>
-                    <div class="text-[10px] uppercase font-bold text-slate-500">Coaches</div>
+                    <div class="text-[10px] uppercase font-bold text-[var(--ntnui-black-light)]">Coaches</div>
                   </div>
 
                   <div>
-                    <div class="text-base sm:text-lg font-black text-emerald-600">
+                    <div class="text-base sm:text-lg font-black text-[var(--ntnui-green)]">
                       {fines.length}
                     </div>
-                    <div class="text-[10px] uppercase font-bold text-slate-500">
+                    <div class="text-[10px] uppercase font-bold text-[var(--ntnui-black-light)]">
                       Fines<br>({approvedTotalFines} kr)
                     </div>
                   </div>
 
                   <div>
-                    <div class="text-base sm:text-lg font-black text-teal-600">
+                    <div class="text-base sm:text-lg font-black text-[var(--ntnui-green)]">
                       {dugnad.length}
                     </div>
-                    <div class="text-[10px] uppercase font-bold text-slate-500">
+                    <div class="text-[10px] uppercase font-bold text-[var(--ntnui-black-light)]">
                       Club Duties<br> ({approvedTotalHours.toFixed(1)} hours)
                     </div>
                   </div>
@@ -2098,7 +2056,7 @@
                 type="button"
                 onclick={handleExportTeamData}
                 disabled={isExporting}
-                class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                class="w-full py-3 px-4 rounded-xl bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {#if isExporting}
                   <RefreshCw class="w-4 h-4 animate-spin" />
@@ -2111,35 +2069,35 @@
             </div>
 
             <!-- CARD 2: IMPORT -->
-            <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between space-y-6">
+            <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] p-6 flex flex-col justify-between space-y-6">
               <div class="space-y-4">
                 <div class="flex items-center justify-between">
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--ntnui-green)]/10 text-[var(--ntnui-green)] border border-[var(--ntnui-green)]/30">
                     <Upload class="w-3.5 h-3.5" />
                     <span>Import / Restore</span>
                   </span>
-                  <span class="text-xs text-slate-400 font-medium">Note: Validate Before Writing</span>
+                  <span class="text-xs text-[var(--ntnui-black-light)] font-medium">Note: Validate Before Writing</span>
                 </div>
 
                 <div>
-                  <h4 class="text-base font-bold text-slate-900">
+                  <h4 class="text-base font-bold text-[var(--ntnui-black-dark)]">
                     Import Team Data
                   </h4>
-                  <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Upload a previously exported JSON file (e.g. <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">team-data.json</code>). The file will be validated before you can choose to merge or replace the existing data.
+                  <p class="text-xs text-[var(--ntnui-black-dark)]/85 mt-1 leading-relaxed">
+                    Upload a previously exported JSON file (e.g. <code class="bg-[var(--ntnui-black)]/5 px-1 py-0.5 rounded text-[var(--ntnui-black-dark)] font-mono text-[11px]">team-data.json</code>). The file will be validated before you can choose to merge or replace the existing data.
                   </p>
                 </div>
 
                 <!-- Upload Drag & Drop Box -->
                 <label
                   for="team-data-file-input"
-                  class="border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-emerald-50/40 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all"
+                  class="border-2 border-dashed border-[var(--ntnui-black)]/30 hover:border-[var(--ntnui-green)] bg-[var(--ntnui-black)]/5 hover:bg-[var(--ntnui-green)]/10 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all"
                 >
-                  <FileUp class="w-7 h-7 text-slate-400 mb-2" />
-                  <span class="text-xs font-bold text-slate-700">
-                    Click to select <span class="text-emerald-600">team-data.json</span>
+                  <FileUp class="w-7 h-7 text-[var(--ntnui-black-light)] mb-2" />
+                  <span class="text-xs font-bold text-[var(--ntnui-black-dark)]">
+                    Click to select <span class="text-[var(--ntnui-green)]">team-data.json</span>
                   </span>
-                  <span class="text-[11px] text-slate-400 mt-0.5">
+                  <span class="text-[11px] text-[var(--ntnui-black-light)] mt-0.5">
                     or drag and drop the file here
                   </span>
 
@@ -2154,9 +2112,9 @@
                 </label>
 
                 {#if importErrors.length > 0}
-                  <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs space-y-1">
+                  <div class="p-3.5 rounded-xl bg-[var(--ntnui-red)]/10 border border-[var(--ntnui-red)]/30 text-[var(--ntnui-red)] text-xs space-y-1">
                     <div class="font-bold flex items-center gap-1.5">
-                      <AlertCircle class="w-4 h-4 text-rose-600 shrink-0" />
+                      <AlertCircle class="w-4 h-4 text-[var(--ntnui-red)] shrink-0" />
                       <span>Validation Error:</span>
                     </div>
 
@@ -2170,7 +2128,7 @@
               </div>
 
               <div class="pt-2">
-                <div class="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1">
+                <div class="text-[11px] text-[var(--ntnui-black-light)] text-center flex items-center justify-center gap-1">
                   <span>No data is deleted automatically without your explicit confirmation</span>
                 </div>
               </div>
@@ -2186,20 +2144,20 @@
       {@const totalFinesInFile = pendingBackup.players?.reduce((sum, p) => sum + (p.fines?.length || 0), 0) || 0}
       {@const totalDugnadInFile = pendingBackup.players?.reduce((sum, p) => sum + (p.dugnad?.length || 0), 0) || 0}
 
-      <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5 border border-slate-200">
+      <div class="fixed inset-0 z-50 bg-[var(--ntnui-black-dark)]/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5 border border-[var(--ntnui-black)]/15">
 
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2.5">
-              <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <div class="w-9 h-9 rounded-xl bg-[var(--ntnui-green)]/10 text-[var(--ntnui-green)] flex items-center justify-center">
                 <Upload class="w-5 h-5" />
               </div>
 
               <div>
-                <h4 class="font-bold text-base text-slate-900">
+                <h4 class="font-bold text-base text-[var(--ntnui-black-dark)]">
                   Confirm Team Data Import
                 </h4>
-                <p class="text-[11px] text-slate-400">
+                <p class="text-[11px] text-[var(--ntnui-black-light)]">
                   Exported: {new Date(pendingBackup.exportedAt || Date.now()).toLocaleString("en-US")} • Version {pendingBackup.version || "1.0"}
                 </p>
               </div>
@@ -2211,45 +2169,45 @@
                 isImportModalOpen = false;
                 pendingBackup = null;
               }}
-              class="text-slate-400 hover:text-slate-600 cursor-pointer"
+              class="text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] cursor-pointer"
             >
               <X class="w-5 h-5" />
             </button>
           </div>
 
           <!-- Inspection Summary Grid -->
-          <div class="grid grid-cols-3 gap-2.5 p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs">
+          <div class="grid grid-cols-3 gap-2.5 p-3.5 bg-[var(--ntnui-black)]/5 rounded-xl border border-[var(--ntnui-black)]/10 text-center text-xs">
             <div>
-              <div class="text-base sm:text-lg font-black text-slate-900">
+              <div class="text-base sm:text-lg font-black text-[var(--ntnui-black-dark)]">
                 {pendingBackup.players?.length || 0}
               </div>
-              <div class="text-[10px] uppercase font-bold text-slate-500">Players</div>
+              <div class="text-[10px] uppercase font-bold text-[var(--ntnui-black-light)]">Players</div>
             </div>
 
             <div>
-              <div class="text-base sm:text-lg font-black text-emerald-600">
+              <div class="text-base sm:text-lg font-black text-[var(--ntnui-green)]">
                 {totalFinesInFile}
               </div>
-              <div class="text-[10px] uppercase font-bold text-slate-500">Fines</div>
+              <div class="text-[10px] uppercase font-bold text-[var(--ntnui-black-light)]">Fines</div>
             </div>
 
             <div>
-              <div class="text-base sm:text-lg font-black text-teal-600">
+              <div class="text-base sm:text-lg font-black text-[var(--ntnui-green)]">
                 {totalDugnadInFile}
               </div>
-              <div class="text-[10px] uppercase font-bold text-slate-500">Club Duties</div>
+              <div class="text-[10px] uppercase font-bold text-[var(--ntnui-black-light)]">Club Duties</div>
             </div>
           </div>
 
           <!-- Mode Selection -->
           <div class="space-y-3">
-            <div class="text-xs font-bold text-slate-800">
+            <div class="text-xs font-bold text-[var(--ntnui-black-dark)]">
               Choose how the data should be imported:
             </div>
 
             <!-- Option 1: Merge -->
             <label
-              class="flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer {importMode === 'merge' ? 'border-emerald-500 bg-emerald-50/40' : 'border-slate-200 hover:border-slate-300'}"
+              class="flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer {importMode === 'merge' ? 'border-[var(--ntnui-green)] bg-[var(--ntnui-green)]/10/40' : 'border-[var(--ntnui-black)]/15 hover:border-[var(--ntnui-black)]/30'}"
             >
               <input
                 type="radio"
@@ -2257,18 +2215,18 @@
                 value="merge"
                 checked={importMode === "merge"}
                 onchange={() => importMode = "merge"}
-                class="mt-1 text-emerald-600 focus:ring-emerald-500"
+                class="mt-1 text-[var(--ntnui-green)] focus:ring-[var(--ntnui-green)]"
               />
 
               <div class="space-y-0.5">
-                <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <div class="text-xs font-bold text-[var(--ntnui-black-dark)] flex items-center gap-1.5">
                   <span>Merge / Update Existing</span>
-                  <span class="text-[10px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-semibold">
+                  <span class="text-[10px] px-1.5 py-0.2 bg-[var(--ntnui-green)]/10 text-[var(--ntnui-green)] rounded font-semibold">
                     Recommended
                   </span>
                 </div>
 
-                <div class="text-[11px] text-slate-500 leading-relaxed">
+                <div class="text-[11px] text-[var(--ntnui-black-light)] leading-relaxed">
                   Updates players and adds missing fines and club duties. It <strong>never</strong> deletes existing data from the database.
                 </div>
               </div>
@@ -2276,7 +2234,7 @@
 
             <!-- Option 2: Replace -->
             <label
-              class="flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer {importMode === 'replace' ? 'border-rose-500 bg-rose-50/40' : 'border-slate-200 hover:border-slate-300'}"
+              class="flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer {importMode === 'replace' ? 'border-[var(--ntnui-red)] bg-[var(--ntnui-red)]/10/40' : 'border-[var(--ntnui-black)]/15 hover:border-[var(--ntnui-black)]/30'}"
             >
               <input
                 type="radio"
@@ -2284,15 +2242,15 @@
                 value="replace"
                 checked={importMode === "replace"}
                 onchange={() => importMode = "replace"}
-                class="mt-1 text-rose-600 focus:ring-rose-500"
+                class="mt-1 text-[var(--ntnui-red)] focus:ring-[var(--ntnui-red)]"
               />
 
               <div class="space-y-0.5">
-                <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                  <span class="text-rose-700">Replace All Team Data (Full Restore)</span>
+                <div class="text-xs font-bold text-[var(--ntnui-black-dark)] flex items-center gap-1.5">
+                  <span class="text-[var(--ntnui-red)]">Replace All Team Data (Full Restore)</span>
                 </div>
 
-                <div class="text-[11px] text-slate-500 leading-relaxed">
+                <div class="text-[11px] text-[var(--ntnui-black-light)] leading-relaxed">
                   Deletes records that are not present in the backup file and completely replaces the current database with the file's contents.
                 </div>
               </div>
@@ -2301,13 +2259,13 @@
 
           <!-- If Replace Mode: confirmation safeguard -->
           {#if importMode === "replace"}
-            <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl space-y-2">
-              <div class="flex items-center gap-1.5 text-rose-800 font-bold text-xs">
-                <AlertTriangle class="w-4 h-4 text-rose-600 shrink-0" />
+            <div class="p-3.5 bg-[var(--ntnui-red)]/10 border border-[var(--ntnui-red)]/30 rounded-xl space-y-2">
+              <div class="flex items-center gap-1.5 text-[var(--ntnui-red)] font-bold text-xs">
+                <AlertTriangle class="w-4 h-4 text-[var(--ntnui-red)] shrink-0" />
                 <span>Confirmation Required</span>
               </div>
 
-              <p class="text-[11px] text-rose-700">
+              <p class="text-[11px] text-[var(--ntnui-red)]">
                 Type <strong>REPLACE</strong> in the field below to confirm that you want to overwrite the existing team data:
               </p>
 
@@ -2315,20 +2273,20 @@
                 type="text"
                 bind:value={replaceConfirmation}
                 placeholder="Type REPLACE..."
-                class="w-full px-3 py-2 bg-white border border-rose-300 rounded-lg text-xs font-bold text-rose-900 placeholder:text-rose-300"
+                class="w-full px-3 py-2 bg-white border border-[var(--ntnui-red)]/30 rounded-lg text-xs font-bold text-[var(--ntnui-red)] placeholder:text-[var(--ntnui-red)]"
               />
             </div>
           {/if}
 
           <!-- Action buttons -->
-          <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+          <div class="flex items-center justify-end gap-3 pt-2 border-t border-[var(--ntnui-black)]/10">
             <button
               type="button"
               onclick={() => {
                 isImportModalOpen = false;
                 pendingBackup = null;
               }}
-              class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer transition-all"
+              class="px-4 py-2 rounded-xl text-xs font-bold text-[var(--ntnui-black-light)] hover:bg-[var(--ntnui-black)]/5 cursor-pointer transition-all"
             >
               Cancel
             </button>
@@ -2337,7 +2295,7 @@
               type="button"
               onclick={executeImport}
               disabled={isImporting || (importMode === 'replace' && replaceConfirmation.trim().toUpperCase() !== 'REPLACE')}
-              class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer transition-all flex items-center gap-2"
+              class="px-5 py-2 rounded-xl bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer transition-all flex items-center gap-2"
             >
               {#if isImporting}
                 <RefreshCw class="w-3.5 h-3.5 animate-spin" />
@@ -2355,24 +2313,24 @@
 
     <!-- MODAL: Edit Fine Entry -->
     {#if editingFine}
-      <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
+      <div class="fixed inset-0 z-50 bg-[var(--ntnui-black-dark)]/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-[var(--ntnui-black)]/15">
           <div class="flex items-center justify-between">
-            <h4 class="font-bold text-base text-slate-900">
+            <h4 class="font-bold text-base text-[var(--ntnui-black-dark)]">
               Edit Fine Submission
             </h4>
-            <button type="button" onclick={() => editingFine = null} class="text-slate-400 hover:text-slate-600 cursor-pointer">
+            <button type="button" onclick={() => editingFine = null} class="text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] cursor-pointer">
               <X class="w-5 h-5" />
             </button>
           </div>
 
           <div class="space-y-3 text-xs sm:text-sm">
             <div>
-              <label for="edit-fine-player" class="block text-xs font-bold text-slate-700 mb-1">Player / Person</label>
+              <label for="edit-fine-player" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Player / Person</label>
               <select
                 id="edit-fine-player"
                 bind:value={editFinePlayerId}
-                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
               >
                 {#each persons as p}
                   <option value={p.id}>{getAdminFullName(p)} ({p.type})</option>
@@ -2382,23 +2340,23 @@
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label for="edit-fine-amount" class="block text-xs font-bold text-slate-700 mb-1">Total Fine (kr)</label>
+                <label for="edit-fine-amount" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Total Fine (kr)</label>
                 <input
                   id="edit-fine-amount"
                   type="number"
                   step="1"
                   min="0"
                   bind:value={editFineAmount}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
                 />
               </div>
 
               <div>
-                <label for="edit-fine-ctx" class="block text-xs font-bold text-slate-700 mb-1">Occasion</label>
+                <label for="edit-fine-ctx" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Occasion</label>
                 <select
                   id="edit-fine-ctx"
                   bind:value={editFineEventContext}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-medium"
                 >
                   <option value="Practice">Practice</option>
                   <option value="Match">Match</option>
@@ -2410,38 +2368,26 @@
 
             <div class="grid grid-cols-2 gap-3 items-center">
               <div>
-                <label for="edit-fine-status" class="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                <label for="edit-fine-status" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Status</label>
                 <select
                   id="edit-fine-status"
                   bind:value={editFineStatus}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-medium"
                 >
                   <option value="approved">Approved</option>
                   <option value="pending">Pending</option>
                   <option value="rejected">Rejected</option>
                 </select>
               </div>
-
-              <div class="pt-5 flex items-center gap-2">
-                <input
-                  id="edit-fine-paid"
-                  type="checkbox"
-                  bind:checked={editFinePaid}
-                  class="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                />
-                <label for="edit-fine-paid" class="text-xs font-bold text-slate-700 cursor-pointer">
-                  Markert som betalt
-                </label>
-              </div>
             </div>
 
             <div>
-              <label for="edit-fine-comm" class="block text-xs font-bold text-slate-700 mb-1">Comment</label>
+              <label for="edit-fine-comm" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Comment</label>
               <textarea
                 id="edit-fine-comm"
                 rows="2"
                 bind:value={editFineComment}
-                class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                class="w-full p-2.5 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)]"
               ></textarea>
             </div>
           </div>
@@ -2451,7 +2397,7 @@
               type="button"
               onclick={() => editingFine = null}
               disabled={isSavingFine}
-              class="px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold cursor-pointer"
+              class="px-3.5 py-1.5 rounded-lg border border-[var(--ntnui-black)]/30 text-[var(--ntnui-black-dark)] text-xs font-semibold cursor-pointer"
             >
               Cancel
             </button>
@@ -2459,7 +2405,7 @@
               type="button"
               onclick={saveEditedFine}
               disabled={isSavingFine}
-              class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
+              class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               {#if isSavingFine}
                 <RefreshCw class="w-3 h-3 animate-spin" />
@@ -2475,24 +2421,24 @@
 
     <!-- MODAL: Edit Dugnad Entry -->
     {#if editingDugnad}
-      <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
+      <div class="fixed inset-0 z-50 bg-[var(--ntnui-black-dark)]/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-[var(--ntnui-black)]/15">
           <div class="flex items-center justify-between">
-            <h4 class="font-bold text-base text-slate-900">
+            <h4 class="font-bold text-base text-[var(--ntnui-black-dark)]">
               Edit Club Duty Submission
             </h4>
-            <button type="button" onclick={() => editingDugnad = null} class="text-slate-400 hover:text-slate-600 cursor-pointer">
+            <button type="button" onclick={() => editingDugnad = null} class="text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] cursor-pointer">
               <X class="w-5 h-5" />
             </button>
           </div>
 
           <div class="space-y-3 text-xs sm:text-sm">
             <div>
-              <label for="edit-dug-player" class="block text-xs font-bold text-slate-700 mb-1">Player</label>
+              <label for="edit-dug-player" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Player</label>
               <select
                 id="edit-dug-player"
                 bind:value={editDugnadPlayerId}
-                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
               >
                 {#each persons.filter(p => p.type === 'player') as p}
                   <option value={p.id}>{getAdminFullName(p)}</option>
@@ -2502,23 +2448,23 @@
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label for="edit-dug-pts" class="block text-xs font-bold text-slate-700 mb-1">Points (pts)</label>
+                <label for="edit-dug-pts" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Points (pts)</label>
                 <input
                   id="edit-dug-pts"
                   type="number"
                   step="1"
                   min="0"
                   bind:value={editDugnadPoints}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
                 />
               </div>
 
               <div>
-                <label for="edit-dug-status" class="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                <label for="edit-dug-status" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Status</label>
                 <select
                   id="edit-dug-status"
                   bind:value={editDugnadStatus}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-medium"
                 >
                   <option value="approved">Approved</option>
                   <option value="pending">Pending</option>
@@ -2528,23 +2474,23 @@
             </div>
 
             <div>
-              <label for="edit-dug-activity" class="block text-xs font-bold text-slate-700 mb-1">Activity Type</label>
+              <label for="edit-dug-activity" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Activity Type</label>
               <input
                 id="edit-dug-activity"
                 type="text"
                 bind:value={editDugnadActivityType}
-                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium"
+                class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-medium"
                 placeholder="e.g. Club Task, Hall Rigging, Kiosk..."
               />
             </div>
 
             <div>
-              <label for="edit-dug-comm" class="block text-xs font-bold text-slate-700 mb-1">Comment</label>
+              <label for="edit-dug-comm" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Comment</label>
               <textarea
                 id="edit-dug-comm"
                 rows="2"
                 bind:value={editDugnadComment}
-                class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                class="w-full p-2.5 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)]"
               ></textarea>
             </div>
           </div>
@@ -2554,7 +2500,7 @@
               type="button"
               onclick={() => editingDugnad = null}
               disabled={isSavingDugnad}
-              class="px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold cursor-pointer"
+              class="px-3.5 py-1.5 rounded-lg border border-[var(--ntnui-black)]/30 text-[var(--ntnui-black-dark)] text-xs font-semibold cursor-pointer"
             >
               Cancel
             </button>
@@ -2562,7 +2508,7 @@
               type="button"
               onclick={saveEditedDugnad}
               disabled={isSavingDugnad}
-              class="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
+              class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               {#if isSavingDugnad}
                 <RefreshCw class="w-3 h-3 animate-spin" />
@@ -2578,13 +2524,13 @@
 
     <!-- MODAL: Edit Person -->
     {#if editingPerson}
-      <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
+      <div class="fixed inset-0 z-50 bg-[var(--ntnui-black-dark)]/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-[var(--ntnui-black)]/15">
           <div class="flex items-center justify-between">
-            <h4 class="font-bold text-base text-slate-900">
+            <h4 class="font-bold text-base text-[var(--ntnui-black-dark)]">
               Edit Team Member
             </h4>
-            <button type="button" onclick={() => editingPerson = null} class="text-slate-400 hover:text-slate-600 cursor-pointer">
+            <button type="button" onclick={() => editingPerson = null} class="text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] cursor-pointer">
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -2592,85 +2538,85 @@
           <div class="space-y-3 text-xs sm:text-sm">
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label for="edit-p-fname" class="block text-xs font-bold text-slate-700 mb-1">First Name *</label>
+                <label for="edit-p-fname" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">First Name *</label>
                 <input
                   id="edit-p-fname"
                   type="text"
                   bind:value={editPersonFirstName}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
                 />
               </div>
               <div>
-                <label for="edit-p-lname" class="block text-xs font-bold text-slate-700 mb-1">Last Name</label>
+                <label for="edit-p-lname" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Last Name</label>
                 <input
                   id="edit-p-lname"
                   type="text"
                   bind:value={editPersonLastName}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
                 />
               </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label for="edit-p-type" class="block text-xs font-bold text-slate-700 mb-1">Type</label>
+                <label for="edit-p-type" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Type</label>
                 <select
                   id="edit-p-type"
                   bind:value={editPersonType}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-medium"
                 >
                   <option value="player">Player</option>
                   <option value="coach">Coach / Staff</option>
                 </select>
               </div>
               <div>
-                <label for="edit-p-num" class="block text-xs font-bold text-slate-700 mb-1">Jersey #</label>
+                <label for="edit-p-num" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Jersey #</label>
                 <input
                   id="edit-p-num"
                   type="number"
                   bind:value={editPersonNumber}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)]"
                 />
               </div>
             </div>
 
             <div>
-              <label for="edit-p-role" class="block text-xs font-bold text-slate-700 mb-1">Position / Role</label>
+              <label for="edit-p-role" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Position / Role</label>
               <input
                 id="edit-p-role"
                 type="text"
                 bind:value={editPersonRole}
-                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)]"
               />
             </div>
 
-            <label class="flex items-start gap-2.5 p-3.5 bg-amber-50 rounded-xl border border-amber-200 cursor-pointer">
+            <label class="flex items-start gap-2.5 p-3.5 bg-[var(--ntnui-yellow)]/10 rounded-xl border border-[var(--ntnui-yellow)]/40 cursor-pointer">
               <input
                 type="checkbox"
                 bind:checked={editPersonExemptFromDutyReverse}
-                class="mt-0.5 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                class="mt-0.5 w-4 h-4 rounded border-[var(--ntnui-black)]/30 text-[var(--ntnui-green)] focus:ring-[var(--ntnui-green)]"
               />
               <span>
-                <span class="block text-xs font-bold text-amber-950">Exclude from reversed Club Duty leaderboard</span>
-                <span class="block text-[11px] text-amber-800 mt-0.5">
+                <span class="block text-xs font-bold text-[var(--ntnui-black-dark)]">Exclude from reversed Club Duty leaderboard</span>
+                <span class="block text-[11px] text-[var(--ntnui-black-dark)] mt-0.5">
                   This person will not appear in the admin reversed ranking.
                 </span>
               </span>
             </label>
 
             <!-- Direct Leaderboards & Totals Adjustment -->
-            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+            <div class="p-3.5 bg-[var(--ntnui-black)]/5 rounded-xl border border-[var(--ntnui-black)]/15 space-y-2.5">
               <div>
-                <span class="block text-xs font-bold text-slate-800">
+                <span class="block text-xs font-bold text-[var(--ntnui-black-dark)]">
                   Direct Leaderboards & Totals Adjustment
                 </span>
-                <span class="block text-[11px] text-slate-500 italic mt-0.5">
+                <span class="block text-[11px] text-[var(--ntnui-black-light)] italic mt-0.5">
                   Directly adjust this person's recorded fine total and club duty points.
                 </span>
               </div>
               <div class="grid grid-cols-2 gap-3 pt-1">
                 <div>
-                  <label for="edit-p-finesum" class="block text-xs font-bold text-slate-700 mb-1">
+                  <label for="edit-p-finesum" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">
                     Fines Sum (kr)
                   </label>
                   <div class="relative">
@@ -2679,9 +2625,9 @@
                       type="number"
                       step="5"
                       bind:value={editPersonFineSum}
-                      class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-bold focus:ring-2 focus:ring-emerald-200"
+                      class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
                     />
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--ntnui-black-light)]">
                       kr
                     </span>
                   </div>
@@ -2689,7 +2635,7 @@
 
                 {#if editPersonType === 'player'}
                   <div>
-                    <label for="edit-p-dutypts" class="block text-xs font-bold text-slate-700 mb-1">
+                    <label for="edit-p-dutypts" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">
                       Club Duty (pts)
                     </label>
                     <div class="relative">
@@ -2699,15 +2645,15 @@
                         step="1"
                         min="0"
                         bind:value={editPersonDutyPoints}
-                        class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-bold focus:ring-2 focus:ring-teal-200"
+                        class="w-full px-3 py-2 bg-white border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
                       />
-                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
+                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--ntnui-black-light)]">
                         pts
                       </span>
                     </div>
                   </div>
                 {:else}
-                  <div class="flex flex-col justify-center text-xs text-slate-400 italic">
+                  <div class="flex flex-col justify-center text-xs text-[var(--ntnui-black-light)] italic">
                     Coaches are excluded from Club Duty.
                   </div>
                 {/if}
@@ -2719,7 +2665,7 @@
             <button
               type="button"
               onclick={() => editingPerson = null}
-              class="px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold cursor-pointer"
+              class="px-3.5 py-1.5 rounded-lg border border-[var(--ntnui-black)]/30 text-[var(--ntnui-black-dark)] text-xs font-semibold cursor-pointer"
             >
               Cancel
             </button>
@@ -2727,7 +2673,7 @@
               type="button"
               onclick={saveEditedPerson}
               disabled={isSavingPerson}
-              class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
+              class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               {#if isSavingPerson}
                 <RefreshCw class="w-3 h-3 animate-spin" />
@@ -2743,41 +2689,41 @@
 
     <!-- MODAL: Edit Fine Rule -->
     {#if editingRule}
-      <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
+      <div class="fixed inset-0 z-50 bg-[var(--ntnui-black-dark)]/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-[var(--ntnui-black)]/15">
           <div class="flex items-center justify-between">
-            <h4 class="font-bold text-base text-slate-900">
+            <h4 class="font-bold text-base text-[var(--ntnui-black-dark)]">
               Edit Fine Rule
             </h4>
-            <button type="button" onclick={() => editingRule = null} class="text-slate-400 hover:text-slate-600 cursor-pointer">
+            <button type="button" onclick={() => editingRule = null} class="text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] cursor-pointer">
               <X class="w-5 h-5" />
             </button>
           </div>
 
           <div class="space-y-3 text-xs sm:text-sm">
             <div>
-              <label for="edit-r-title" class="block text-xs font-bold text-slate-700 mb-1">Rule Title *</label>
+              <label for="edit-r-title" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Rule Title *</label>
               <input
                 id="edit-r-title"
                 type="text"
                 bind:value={editRuleTitle}
-                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
               />
             </div>
 
             <!-- Occasion amounts (Mandatory) -->
-            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div class="p-3.5 bg-[var(--ntnui-black)]/5 rounded-xl border border-[var(--ntnui-black)]/15 space-y-2">
               <div>
-                <span class="block text-xs font-bold text-slate-800">
+                <span class="block text-xs font-bold text-[var(--ntnui-black-dark)]">
                   Occasion Amounts *
                 </span>
-                <span class="block text-[11px] text-slate-500 italic mt-0.5">
+                <span class="block text-[11px] text-[var(--ntnui-black-light)] italic mt-0.5">
                   * Leave blank or 0 to exclude this violation from that occasion.
                 </span>
               </div>
               <div class="grid grid-cols-3 gap-2 pt-1">
                 <div>
-                  <label for="edit-match-rate" class="block text-[10px] font-bold text-slate-600 mb-1">Match (kr)</label>
+                  <label for="edit-match-rate" class="block text-[10px] font-bold text-[var(--ntnui-black-light)] mb-1">Match (kr)</label>
                   <input
                     id="edit-match-rate"
                     type="number"
@@ -2785,11 +2731,11 @@
                     min="0"
                     placeholder="None"
                     bind:value={editRuleFineMatch}
-                    class="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-md text-xs font-bold text-slate-900"
+                    class="w-full p-1.5 bg-white border border-[var(--ntnui-black)]/30 rounded-md text-xs font-bold text-[var(--ntnui-black-dark)]"
                   />
                 </div>
                 <div>
-                  <label for="edit-practice-rate" class="block text-[10px] font-bold text-slate-600 mb-1">Practice (kr)</label>
+                  <label for="edit-practice-rate" class="block text-[10px] font-bold text-[var(--ntnui-black-light)] mb-1">Practice (kr)</label>
                   <input
                     id="edit-practice-rate"
                     type="number"
@@ -2797,11 +2743,11 @@
                     min="0"
                     placeholder="None"
                     bind:value={editRuleFinePractice}
-                    class="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-md text-xs font-bold text-slate-900"
+                    class="w-full p-1.5 bg-white border border-[var(--ntnui-black)]/30 rounded-md text-xs font-bold text-[var(--ntnui-black-dark)]"
                   />
                 </div>
                 <div>
-                  <label for="edit-social-rate" class="block text-[10px] font-bold text-slate-600 mb-1">Social (kr)</label>
+                  <label for="edit-social-rate" class="block text-[10px] font-bold text-[var(--ntnui-black-light)] mb-1">Social (kr)</label>
                   <input
                     id="edit-social-rate"
                     type="number"
@@ -2809,19 +2755,19 @@
                     min="0"
                     placeholder="None"
                     bind:value={editRuleFineSocial}
-                    class="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-md text-xs font-bold text-slate-900"
+                    class="w-full p-1.5 bg-white border border-[var(--ntnui-black)]/30 rounded-md text-xs font-bold text-[var(--ntnui-black-dark)]"
                   />
                 </div>
               </div>
             </div>
 
             <div>
-              <label for="edit-r-desc" class="block text-xs font-bold text-slate-700 mb-1">Description (optional)</label>
+              <label for="edit-r-desc" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Description (optional)</label>
               <textarea
                 id="edit-r-desc"
                 rows="2"
                 bind:value={editRuleDescription}
-                class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                class="w-full p-2.5 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)]"
               ></textarea>
             </div>
           </div>
@@ -2830,14 +2776,14 @@
             <button
               type="button"
               onclick={() => editingRule = null}
-              class="px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold cursor-pointer"
+              class="px-3.5 py-1.5 rounded-lg border border-[var(--ntnui-black)]/30 text-[var(--ntnui-black-dark)] text-xs font-semibold cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
               onclick={saveEditedRule}
-              class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+              class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
             >
               Save Rule
             </button>
@@ -2848,35 +2794,35 @@
 
     <!-- MODAL: Edit Dugnad Activity -->
     {#if editingDugnadActivity}
-      <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
+      <div class="fixed inset-0 z-50 bg-[var(--ntnui-black-dark)]/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-[var(--ntnui-black)]/15">
           <div class="flex items-center justify-between">
-            <h4 class="font-bold text-base text-slate-900">
+            <h4 class="font-bold text-base text-[var(--ntnui-black-dark)]">
               Edit Duty Task & Rate
             </h4>
-            <button type="button" onclick={() => editingDugnadActivity = null} class="text-slate-400 hover:text-slate-600 cursor-pointer">
+            <button type="button" onclick={() => editingDugnadActivity = null} class="text-[var(--ntnui-black-light)] hover:text-[var(--ntnui-black-dark)] cursor-pointer">
               <X class="w-5 h-5" />
             </button>
           </div>
 
           <div class="space-y-3 text-xs sm:text-sm">
             <div>
-              <label for="edit-act-title" class="block text-xs font-bold text-slate-700 mb-1">Activity Title *</label>
+              <label for="edit-act-title" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Activity Title *</label>
               <input
                 id="edit-act-title"
                 type="text"
                 bind:value={editDugnadActTitle}
-                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
               />
             </div>
 
             <div class="grid grid-cols-3 gap-3">
               <div>
-                <label for="edit-act-type" class="block text-xs font-bold text-slate-700 mb-1">Point Type</label>
+                <label for="edit-act-type" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Point Type</label>
                 <select
                   id="edit-act-type"
                   bind:value={editDugnadActPointsType}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
                 >
                   <option value="perHour">Per hour</option>
                   <option value="fixed">Fixed</option>
@@ -2885,7 +2831,7 @@
 
               {#if editDugnadActPointsType === "perHour"}
               <div>
-                <label for="edit-act-hours" class="block text-xs font-bold text-slate-700 mb-1">Standard Duration (Hours)</label>
+                <label for="edit-act-hours" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Standard Duration (Hours)</label>
                 <input
                   id="edit-act-hours"
                   type="number"
@@ -2893,20 +2839,20 @@
                   min="0.5"
                   max="24"
                   bind:value={editDugnadActDefaultHours}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
                 />
               </div>
               {/if}
 
               <div>
-                <label for="edit-act-rate" class="block text-xs font-bold text-slate-700 mb-1">Points ({editDugnadActPointsType === "fixed" ? "fixed" : "per hour"})</label>
+                <label for="edit-act-rate" class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1">Points ({editDugnadActPointsType === "fixed" ? "fixed" : "per hour"})</label>
                 <input
                   id="edit-act-rate"
                   type="number"
                   step="0.5"
                   min="1"
                   bind:value={editDugnadActpointsPer}
-                  class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                  class="w-full px-3 py-2 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-lg text-[var(--ntnui-black-dark)] font-bold"
                 />
               </div>
             </div>
@@ -2916,14 +2862,14 @@
             <button
               type="button"
               onclick={() => editingDugnadActivity = null}
-              class="px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold cursor-pointer"
+              class="px-3.5 py-1.5 rounded-lg border border-[var(--ntnui-black)]/30 text-[var(--ntnui-black-dark)] text-xs font-semibold cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
               onclick={saveEditedDugnadActivity}
-              class="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+              class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
             >
               Save Rate
             </button>

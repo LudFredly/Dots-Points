@@ -658,9 +658,7 @@ export class H4ADataManager {
               reportedBy: d.reportedBy || "",
               date: d.date || new Date().toISOString(),
               eventContext: d.eventContext || "Practice",
-              status: d.status || "pending",
-              paid: Boolean(d.paid),
-              paidDate: d.paidDate
+              status: d.status || "pending"
             });
           });
           list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -790,8 +788,7 @@ export class H4ADataManager {
       ...report,
       id,
       date: report.date || new Date().toISOString(),
-      status: report.status || "pending",
-      paid: false
+      status: report.status || "pending"
     };
 
     if (!this.isConfigured) {
@@ -1069,8 +1066,7 @@ export class H4ADataManager {
           comment: `Direct admin adjustment to set total fines to ${targetFineSum} kr`,
           date: new Date().toISOString(),
           eventContext: "Other",
-          status: "approved",
-          paid: false
+          status: "approved"
         };
         if (!this.isConfigured) {
           this.fines = [adjFine, ...this.fines];
@@ -1375,9 +1371,7 @@ export class H4ADataManager {
             reportedBy: f.reportedBy || "",
             date: f.date || new Date().toISOString(),
             eventContext: f.eventContext || "Other",
-            status: f.status || "approved",
-            paid: Boolean(f.paid),
-            paidDate: f.paidDate || undefined
+            status: f.status || "approved"
           });
         });
       }

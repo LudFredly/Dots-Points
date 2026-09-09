@@ -36,18 +36,20 @@
   );
 </script>
 
-<header class="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-30">
+<header class="bg-[var(--ntnui-green)] text-white shadow-md sticky top-0 z-30">
   <div class="max-w-5xl mx-auto px-4 py-3 sm:px-6">
     <div class="flex items-center justify-between gap-3">
+
       <!-- Team Logo & Title -->
       <div class="flex items-center gap-3">
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-base sm:text-lg font-bold tracking-tight text-white leading-tight">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-[var(--ntnui-black-dark)] leading-tight">
               {settings?.teamName || 'H4A'} {settings?.season || '26/27'}
             </h1>
           </div>
-          <p class="text-xs text-slate-400 font-normal">
+
+          <p class="text-xs text-[var(--ntnui-black-dark)] font-normal">
             Team Fines & Club Duty Portal
           </p>
         </div>
@@ -55,56 +57,78 @@
 
       <!-- Header Action Buttons -->
       <div class="flex items-center gap-2">
+
+        <!-- Fine Rules -->
         <button
           type="button"
           onclick={onOpenRules}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 transition-all text-slate-200 border border-slate-700 cursor-pointer shadow-xs"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--ntnui-yellow)] hover:bg-[#e6c600] active:bg-[#ccb000] transition-all text-[var(--ntnui-black-dark)] cursor-pointer shadow-xs"
           title="View official penalty fine rules"
         >
-          <BookOpen class="w-3.5 h-3.5 text-emerald-400" />
-          <span class="hidden sm:inline">Fine Rules</span>
+          <BookOpen class="w-3.5 h-3.5 text-[var(--ntnui-black-dark)]" />
+          <span class="hidden sm:inline text-[var(--ntnui-black-dark)]">Fine Rules</span>
         </button>
 
-
-
+        <!-- Admin -->
         {#if h4aStore.isAdminAccessGranted}
           <button
             type="button"
             onclick={() => onSelectTab(activeTab === 'admin' ? 'fine-form' : 'admin')}
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs relative {activeTab === 'admin' ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'}"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs relative {activeTab === 'admin'
+              ? 'bg-[var(--ntnui-black-dark)] text-[var(--ntnui-yellow)] ring-2 ring-white/40'
+              : 'bg-[var(--ntnui-yellow)] hover:bg-[#e6c600] active:bg-[#ccb000] text-[var(--ntnui-black-dark)]'}"
             title={activeTab === 'admin' ? 'Exit Admin Dashboard' : 'Open Admin Dashboard'}
           >
-            <Settings class="w-3.5 h-3.5 {activeTab === 'admin' ? 'text-white' : 'text-emerald-400'}" />
+            <Settings
+              class="w-3.5 h-3.5 {activeTab === 'admin'
+                ? 'text-[var(--ntnui-yellow)]'
+                : 'text-[var(--ntnui-black-dark)]'}"
+            />
             <span>{activeTab === 'admin' ? 'Exit Admin' : 'Admin'}</span>
           </button>
         {/if}
       </div>
     </div>
 
-    <!-- Quick Stats Bar -->
-    <div class="mt-3 pt-3 border-t border-slate-800 grid grid-cols-1 gap-2 text-center text-xs">
-      <!-- Fine Pot Widget -->
-      <div class="bg-slate-800/80 rounded-xl py-2 px-3 border border-slate-700/80">
-        <div class="text-slate-400 text-[11px] font-medium flex items-center justify-center gap-1 mb-0.5">
-          <span>Team Penalty Pot</span>
-        </div>
-        <div class="font-bold text-sm sm:text-base flex items-center justify-center gap-1">
-          {#if settings.finePotPublished || activeTab === 'admin'}
-            <span class="text-white font-extrabold">{totalFinesNok} kr</span>
-            {#if settings.finePotPublished}
-              <span title="Published by admin" class="flex items-center">
-                <Unlock class="w-3 h-3 text-emerald-400" />
-              </span>
-            {:else}
-              <span title="Unpublished (Admin View)" class="flex items-center gap-0.5 text-[10px] text-amber-400 font-bold bg-amber-950/60 px-1 py-0.2 rounded border border-amber-500/30">
-                <span>Admin</span>
-              </span>
-            {/if}
-          {:else}
-            <span class="text-slate-300 font-mono tracking-wider font-extrabold">??? kr</span>
+    <!-- Quick Stats -->
+    <div class="mt-3 pt-3 border-t border-white/20 grid grid-cols-1 gap-2 text-center text-xs">
+
+    <!-- Fine Pot Widget -->
+    <div class="bg-[var(--ntnui-yellow)] rounded-xl py-2 px-3 border border-black/30">
+      <div class="text-[var(--ntnui-black-light)] text-[11px] font-medium flex items-center justify-center gap-1 mb-0.5">
+        <span>Team Penalty Pot</span>
+      </div>
+
+      <div class="font-bold text-sm sm:text-base flex items-center justify-center gap-2">
+        {#if settings.finePotPublished || activeTab === 'admin'}
+
+          {#if !settings.finePotPublished}
+            <span class="text-[var(--ntnui-black)] font-extrabold">
+              Unpublished:
+            </span>
           {/if}
-        </div>
+
+          <span class="text-[var(--ntnui-black)] font-extrabold">
+            {totalFinesNok} kr
+          </span>
+
+        {:else}
+
+          <span class="text-[var(--ntnui-black)] font-mono tracking-wider font-extrabold">
+            ??? kr
+          </span>
+
+        {/if}
       </div>
     </div>
+    </div>
   </div>
+
+  <!-- NTNUI Accent Stripes -->
+  <div class="h-1 bg-[var(--ntnui-yellow)]"></div>
+  <div class="h-1 bg-[var(--ntnui-black-dark)]"></div>
+  <div class="h-1 bg-[var(--ntnui-yellow)]"></div>
+  <div class="h-1 bg-[var(--ntnui-green)]"></div>
+
+  
 </header>

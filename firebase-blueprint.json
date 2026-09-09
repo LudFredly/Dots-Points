@@ -222,12 +222,6 @@
             "approved",
             "rejected"
           ]
-        },
-        "paid": {
-          "type": "boolean"
-        },
-        "paidDate": {
-          "type": "string"
         }
       },
       "required": [

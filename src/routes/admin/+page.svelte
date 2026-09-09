@@ -30,14 +30,14 @@
   });
 </script>
 
-<div class="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 selection:bg-emerald-500 selection:text-white">
+<div class="min-h-screen bg-slate-100 flex flex-col font-sans text-[var(--ntnui-black-dark)] selection:bg-emerald-500 selection:text-white">
   <!-- Top Bar -->
-  <header class="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-30">
+  <header class="bg-[var(--ntnui-black-dark)] text-white shadow-md border-b border-[var(--ntnui-black-dark)] sticky top-0 z-30">
     <div class="max-w-5xl mx-auto px-4 py-3 sm:px-6 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <a
           href="/"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--ntnui-black-dark)] hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700"
         >
           <ArrowLeft class="w-4 h-4" />
           <span>Back to Main Portal</span>

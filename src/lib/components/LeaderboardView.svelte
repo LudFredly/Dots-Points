@@ -77,22 +77,20 @@
 <div class="space-y-6">
   <!-- View Switcher -->
   <div class="flex items-center justify-center">
-    <div class="bg-slate-200 p-1 rounded-xl flex items-center gap-1 shadow-inner">
+    <div class="bg-white p-1 rounded-xl border border-[var(--ntnui-black)] flex items-center gap-1 shadow-inner">
       <button
         type="button"
         onclick={() => activeView = "fines"}
-        class="flex items-center gap-2 px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer {activeView === 'fines' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-700 hover:text-slate-950'}"
+        class="flex items-center gap-2 px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer {activeView === 'fines' ? 'bg-[var(--ntnui-green)]/70 text-[var(--ntnui-black)] shadow-xs' : 'text-[var(--ntnui-black)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-green)]/15'}"
       >
-        <ShieldAlert class="w-4 h-4 text-emerald-400" />
         <span>Penalty Leaderboard</span>
       </button>
 
       <button
         type="button"
         onclick={() => activeView = "dugnad"}
-        class="flex items-center gap-2 px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer {activeView === 'dugnad' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-700 hover:text-slate-950'}"
+        class="flex items-center gap-2 px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer {activeView === 'dugnad' ? 'bg-[var(--ntnui-green)]/70 text-[var(--ntnui-black)] shadow-xs' : 'text-[var(--ntnui-black)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-green)]/15'}"
       >
-        <HeartHandshake class="w-4 h-4 text-teal-400" />
         <span>Club Duty Leaderboard</span>
       </button>
     </div>
@@ -102,12 +100,12 @@
   {#if activeView === "fines"}
     {#if !settings.finePotPublished}
       <!-- HIDDEN STATE UNTIL ADMIN PUBLISHES -->
-      <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-8 sm:p-12 text-center max-w-xl mx-auto space-y-4">
-        <div class="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
-          <Lock class="w-8 h-8" />
+      <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black)] p-8 sm:p-12 text-center max-w-xl mx-auto space-y-4">
+        <div class="w-16 h-16 text-[var(--ntnui-yellow)] flex items-center justify-center mx-auto">
+          <Lock class="w-16 h-16" />
         </div>
         <div class="space-y-2">
-          <h3 class="text-xl font-bold text-slate-900 tracking-tight">
+          <h3 class="text-xl font-bold text-[var(--ntnui-black-dark)] tracking-tight">
             Penalty Leaderboards Are Hidden
           </h3>
           <p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
@@ -122,9 +120,9 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {#each fineStats().slice(0, 3) as item, index}
             {@const rankColors = [
-              "border-black-400 bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-50 text-slate-900",
-              "border-black-400 bg-gradient-to-r from-slate-50 via-slate-200 to-slate-50 text-slate-900",
-              "border-black-400 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 text-slate-900"
+              "border-black-400 bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-50 text-[var(--ntnui-black-dark)]",
+              "border-black-400 bg-gradient-to-r from-[var(--ntnui-black)]/5 via-slate-200 to-[var(--ntnui-black)]/5 text-[var(--ntnui-black-dark)]",
+              "border-black-400 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 text-[var(--ntnui-black-dark)]"
             ]}
             {@const rankTitles = ["🥇", "🥈", "🥉"]}
             <div class="rounded-2xl border p-2 pb-4 text-center shadow-xs {rankColors[index]}">
@@ -140,47 +138,51 @@
               <div class="text-xl sm:text-2xl font-black text-black">
                 {item.totalAmount} kr
               </div>
-              <div class="text-[11px] text-slate-500 font-medium">
-                {item.count} {item.count === 1 ? 'violation' : 'violations'}
-              </div>
             </div>
           {/each}
         </div>
 
         <!-- Full Player Fine Table -->
-        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-          <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
-            <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
-              <ShieldAlert class="w-4 h-4 text-emerald-400" />
-              <span>Player Fine Table</span>
-            </div>
-            <div class="text-xs text-slate-300">
-              Total Pot: <span class="font-bold text-white">{totalFinesNok} kr</span>
+        <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black)] overflow-hidden">
+          <div class="p-4 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex items-center justify-center">
+            <div class="text-lg sm:text-xl font-bold flex items-center justify-center gap-2">
+              <span>Penalty Leaderboard</span>
             </div>
           </div>
 
-          <div class="divide-y divide-slate-100">
+          <div class="divide-y divide-[var(--ntnui-black)]/5">
             {#each fineStats() as item, idx}
-              <div class="p-3.5 sm:px-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                <div class="flex items-center gap-3">
-                  <span class="w-6 text-center font-bold text-xs {idx < 3 ? 'text-amber-600 font-black' : 'text-slate-400'}">
-                    #{idx + 1}
-                  </span>
+              {@const rank = fineStats().filter(other => other.totalAmount > item.totalAmount).length + 1}
+
+              <div class="p-3.5 sm:px-5 flex items-center justify-between hover:bg-[var(--ntnui-black)]/10 transition-colors">
+                <div class="flex items-center gap-5">
+
+                  <!-- Position -->
+                  <div class="w-7 shrink-0 text-right relative -top-0.5">
+                    <span class="font-bold text-xl text-[var(--ntnui-black)]">
+                      {rank}.
+                    </span>
+                  </div>
+
+                  <!-- Person -->
                   <div>
-                    <div class="font-bold text-slate-900 text-xs sm:text-sm">
+                    <div class="font-bold text-[var(--ntnui-black)] text-xs sm:text-sm">
                       {item.displayName}
                     </div>
-                    <div class="text-[11px] text-slate-400">
+
+                    <div class="text-[11px] text-[var(--ntnui-black-light)]">
                       {item.person.role || "Player"} {item.person.number ? `• #${item.person.number}` : ""}
                     </div>
                   </div>
                 </div>
 
+                <!-- Fine Total -->
                 <div class="text-right">
-                  <div class="font-black text-xs sm:text-sm text-slate-900">
+                  <div class="font-black text-xs sm:text-sm text-[var(--ntnui-black)]">
                     {item.totalAmount} kr
                   </div>
-                  <div class="text-[11px] text-slate-400 font-medium">
+
+                  <div class="text-[11px] text-[var(--ntnui-black-light)]">
                     {item.count} {item.count === 1 ? 'fine' : 'fines'}
                   </div>
                 </div>
@@ -198,22 +200,25 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {#each dugnadStats().slice(0, 3) as item, index}
           {@const rankColors = [
-  "border-black-400 bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-50 text-slate-900",
-  "border-black-400 bg-gradient-to-r from-slate-50 via-slate-200 to-slate-50 text-slate-900",
-  "border-black-400 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 text-slate-900"
-]}
-         {@const rankTitles = ["🥇", "🥈", "🥉"]}
+            "border-black-400 bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-50 text-[var(--ntnui-black-dark)]",
+            "border-black-400 bg-gradient-to-r from-[var(--ntnui-black)]/5 via-slate-200 to-[var(--ntnui-black)]/5 text-[var(--ntnui-black-dark)]",
+            "border-black-400 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 text-[var(--ntnui-black-dark)]"
+          ]}
+          {@const rankTitles = ["🥇", "🥈", "🥉"]}
 
           <div class="rounded-2xl border p-2 pb-4 text-center shadow-xs {rankColors[index]}">
             <div class="text-[20px] tracking-wider mb-0">
               {rankTitles[index]}
             </div>
+
             <div class="text-base sm:text-lg font-black tracking-tight">
               {item.displayName}
             </div>
+
             <div class="text-sm text-black mb-3">
               {item.player.role || "Player"} {item.player.number ? `(#${item.player.number})` : ""}
             </div>
+
             <div class="text-xl sm:text-2xl font-black text-black">
               {item.totalPoints} pts
             </div>
@@ -222,36 +227,46 @@
       </div>
 
       <!-- Full Duty Table -->
-      <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-        <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
-          <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
-            <HeartHandshake class="w-4 h-4 text-teal-400" />
+      <div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black)] overflow-hidden">
+        <div class="p-4 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex items-center justify-center">
+          <div class="text-lg sm:text-xl font-bold flex items-center justify-center gap-2">
             <span>Club Duty Leaderboard</span>
           </div>
         </div>
 
-        <div class="divide-y divide-slate-100">
-          {#each dugnadStats() as item, idx}
-            <div class="p-3.5 sm:px-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-              <div class="flex items-center gap-3">
-                <span class="w-6 text-center font-bold text-xs {idx < 3 ? 'text-teal-600 font-black' : 'text-slate-400'}">
-                  #{idx + 1}
-                </span>
+        <div class="divide-y divide-[var(--ntnui-black)]/5">
+          {#each dugnadStats() as item}
+            {@const rank = dugnadStats().filter(other => other.totalPoints > item.totalPoints).length + 1}
+
+            <div class="p-3.5 sm:px-5 flex items-center justify-between hover:bg-[var(--ntnui-black)]/10 transition-colors">
+              <div class="flex items-center gap-5">
+
+                <!-- Position -->
+                <div class="w-7 shrink-0 text-right relative -top-0.5">
+                  <span class="font-bold text-xl text-[var(--ntnui-black)]">
+                    {rank}.
+                  </span>
+                </div>
+
+                <!-- Player -->
                 <div>
-                  <div class="font-bold text-slate-900 text-xs sm:text-sm">
+                  <div class="font-bold text-[var(--ntnui-black)] text-xs sm:text-sm">
                     {item.displayName}
                   </div>
-                  <div class="text-[11px] text-slate-400">
+
+                  <div class="text-[11px] text-[var(--ntnui-black-light)]">
                     {item.player.role || "Player"} {item.player.number ? `• #${item.player.number}` : ""}
                   </div>
                 </div>
               </div>
 
+              <!-- Points -->
               <div class="text-right">
-                <div class="font-black text-xs sm:text-sm text-teal-900">
+                <div class="font-black text-xs sm:text-sm text-[var(--ntnui-black)]">
                   {item.totalPoints} pts
                 </div>
               </div>
+
             </div>
           {/each}
         </div>

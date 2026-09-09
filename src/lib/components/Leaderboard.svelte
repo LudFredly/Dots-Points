@@ -18,7 +18,10 @@
 
                 return {
                     name: data.name || "Unknown",
-                    fines_total: finesArray.reduce((sum: number, fine: number) => sum + (Number(fine) || 0), 0),
+                    fines_total: finesArray.reduce(
+                        (sum: number, fine: number) => sum + (Number(fine) || 0),
+                        0
+                    ),
                 };
             });
 
@@ -36,29 +39,43 @@
     });
 </script>
 
-<ol>
-    {#each leaderboard as player}
-            <li>{player.name}: {player.fines_total}kr</li>
+<div class="space-y-2">
+    {#each leaderboard as player, index}
+        <div
+            class="rounded-2xl border p-4 flex items-center justify-between gap-4 shadow-xs
+            {index === 0
+                ? 'border-[var(--ntnui-red)]/40 bg-[var(--ntnui-red)]/5'
+                : 'border-[var(--ntnui-black)]/15 bg-white'}"
+        >
+            <!-- Rank + Name -->
+            <div class="flex items-center gap-4 min-w-0">
+                <span
+                    class="w-6 shrink-0 text-center font-bold text-xs text-[var(--ntnui-black-dark)]"
+                >
+                    #{index + 1}
+                </span>
+
+                <div class="min-w-0">
+                    <div
+                        class="font-bold text-sm sm:text-base truncate
+                        {index === 0
+                            ? 'text-[var(--ntnui-red)]'
+                            : 'text-[var(--ntnui-black-dark)]'}"
+                    >
+                        {player.name}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fine Total -->
+            <div class="shrink-0 self-center text-center min-w-[70px]">
+                <div class="font-black text-sm sm:text-base text-[var(--ntnui-black-dark)]">
+                    {player.fines_total} kr
+                </div>
+                <div class="text-[11px] font-normal text-[var(--ntnui-black-light)]">
+                    total fines
+                </div>
+            </div>
+        </div>
     {/each}
-</ol>
-
-<style>
-
-    ol {
-        border-radius: 10px;
-        font-size: 20px;
-        font-weight: 400;
-        margin-left: 50px;
-    }
-
-    li {
-        margin-bottom: 10px;
-    }
-
-
-    ol li:last-child {
-        margin-bottom: 0;
-
-    }
-
-</style>
+</div>

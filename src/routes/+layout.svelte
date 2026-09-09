@@ -38,7 +38,7 @@
 {#if canViewContent}
   {@render children()}
 {:else}
-  <div class="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900">
+  <div class="min-h-screen bg-slate-100 flex flex-col font-sans text-[var(--ntnui-black-dark)]">
     <AccessGate onUnlocked={() => syncAccess()} />
   </div>
 {/if}

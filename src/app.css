@@ -2,6 +2,21 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased font-sans min-h-screen selection:bg-emerald-200 selection:text-emerald-900;
+    @apply bg-[var(--ntnui-black)]/5 text-[var(--ntnui-black-dark)] antialiased font-sans min-h-screen selection:bg-emerald-200 selection:text-emerald-900;
   }
+}
+
+:root {
+  --ntnui-green: #00843D;
+  --ntnui-red: #E4002B;
+  --ntnui-yellow: #FEDB00;
+  --ntnui-black: #2D2926;
+  --ntnui-black-light: #514b47;
+  --ntnui-black-dark: #1f1d1b;
+  
+  /* Tekstfarger */
+  --text-on-green: #FFFFFF;
+  --text-on-red: #FFFFFF;
+  --text-on-yellow: #2D2926;
+  --text-on-black: #FFFFFF;
 }

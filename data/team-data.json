@@ -37,8 +37,7 @@
           "reportedBy": "Captain",
           "date": "2026-09-01T18:05:00.000Z",
           "eventContext": "Practice",
-          "status": "approved",
-          "paid": false
+          "status": "approved"
         }
       ],
       "dugnad": [
