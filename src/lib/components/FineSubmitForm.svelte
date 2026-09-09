@@ -23,7 +23,7 @@
   let selectedPersonId = $state("");
   let eventContext = $state<OccasionType>("Practice"); // Occasion comes before violations, required
   let selectedRuleIds = $state<string[]>([]);
-  let customAmount = $state<number | undefined>(undefined);
+  let customAmount = $state<number | null>(null);
   let customFineName = $state("");
   let customComment = $state("");
   
@@ -177,7 +177,7 @@
       selectedRuleIds = [];
       customFineName = "";
       customComment = "";
-      customAmount = "";
+      customAmount = null;
 
       setTimeout(() => {
         successMessage = "";

@@ -7,6 +7,8 @@
 }
 
 :root {
+  color-scheme: light;
+
   --ntnui-green: #00843D;
   --ntnui-red: #E4002B;
   --ntnui-yellow: #FEDB00;
@@ -20,3 +22,4 @@
   --text-on-yellow: #2D2926;
   --text-on-black: #FFFFFF;
 }
+
