@@ -7,9 +7,6 @@
 }
 
 :root {
-  /* Sier til nettleseren at siden selv støtter både lyst og mørkt tema,
-     slik at f.eks. Android/Chrome sin automatiske "tving mørk modus"
-     (som gjetter farger og ofte gir dårlig kontrast) ikke slår inn. */
   color-scheme: light dark;
 
   /* ---- NTNUI merkevarefarger (samme i lys/mørk) ---- */
@@ -70,6 +67,18 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    /* ---- NTNUI merkevarefarger (samme i lys/mørk) ---- */
+    --ntnui-green: #00843D;
+    --ntnui-green-dark: #006A3A;
+    --ntnui-red: #E4002B;
+    --ntnui-yellow: #FEDB00;
+    --ntnui-yellow-hover: #e6c600;
+    --ntnui-yellow-active: #ccb000;
+    --ntnui-black: #2D2926;
+    --ntnui-black-light: #514b47;
+    --ntnui-black-dark: #1f1d1b;
+
+    /* ---- Semantiske dark-mode-farger ---- */
     --color-bg: var(--ntnui-black-dark);
     --color-surface: #262220;
     --color-surface-muted: #332e2b;
@@ -83,7 +92,8 @@
     --color-border: #4a433d;
     --color-border-strong: #6b625a;
 
-        --medal-gold-from: #6b4c0a;
+    /* ---- Pallplassering (gull/sølv/bronse) ---- */
+    --medal-gold-from: #6b4c0a;
     --medal-gold-via: #d9a92f;
     --medal-gold-to: #6b4c0a;
     --medal-gold-border: #a8791c;
