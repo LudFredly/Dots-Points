@@ -50,21 +50,6 @@
   );
 </script>
 
-<!-- MIDERTIDIG FORCED-DARK TEST -->
-<div class="p-4 space-y-2">
-  <div style="background: #00843D; color: white; padding: 20px;">
-    NTNUI GREEN
-  </div>
-
-  <div style="background: #FEDB00; color: #2D2926; padding: 20px;">
-    NTNUI YELLOW
-  </div>
-
-  <div style="background: #E4002B; color: white; padding: 20px;">
-    NTNUI RED
-  </div>
-</div>
-
 <div class="min-h-screen bg-[var(--color-bg)] flex flex-col font-sans text-[var(--color-text)] selection:bg-[var(--ntnui-green)]/30 selection:text-[var(--color-text)]">
 
   <!-- Navbar -->

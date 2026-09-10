@@ -67,17 +67,6 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* ---- NTNUI merkevarefarger (samme i lys/mørk) ---- */
-    --ntnui-green: #00843D;
-    --ntnui-green-dark: #006A3A;
-    --ntnui-red: #E4002B;
-    --ntnui-yellow: #FEDB00;
-    --ntnui-yellow-hover: #e6c600;
-    --ntnui-yellow-active: #ccb000;
-    --ntnui-black: #2D2926;
-    --ntnui-black-light: #514b47;
-    --ntnui-black-dark: #1f1d1b;
-
     /* ---- Semantiske dark-mode-farger ---- */
     --color-bg: var(--ntnui-black-dark);
     --color-surface: #262220;
