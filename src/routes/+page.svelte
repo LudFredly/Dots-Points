@@ -50,7 +50,7 @@
   );
 </script>
 
-<div class="min-h-screen bg-[var(--ntnui-black)]/5 flex flex-col font-sans text-[var(--ntnui-black-dark)] selection:bg-[var(--ntnui-green)]/30 selection:text-[var(--ntnui-black-dark)]">
+<div class="min-h-screen bg-[var(--color-bg)] flex flex-col font-sans text-[var(--color-text)] selection:bg-[var(--ntnui-green)]/30 selection:text-[var(--color-text)]">
 
   <!-- Navbar -->
   <Navbar
@@ -68,7 +68,7 @@
 
     <!-- Primary Navigation Tabs -->
     {#if activeTab !== "admin"}
-      <div class="bg-white p-1.5 rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] flex items-center gap-1 overflow-x-auto">
+      <div class="bg-[var(--color-surface)] p-1.5 rounded-2xl shadow-xs border border-[var(--color-border-strong)] flex items-center gap-1 overflow-x-auto">
 
         <!-- Report Fine -->
         <button
@@ -76,7 +76,7 @@
           onclick={() => activeTab = "fine-form"}
           class="flex-1 min-w-[130px] py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer {activeTab === 'fine-form'
             ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
-            : 'text-[var(--ntnui-black)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
+            : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--ntnui-yellow)]/15'}"
         >
           <span>Report Fine</span>
         </button>
@@ -87,7 +87,7 @@
           onclick={() => activeTab = "dugnad-form"}
           class="flex-1 min-w-[130px] py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer {activeTab === 'dugnad-form'
             ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
-            : 'text-[var(--ntnui-black)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
+            : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--ntnui-yellow)]/15'}"
         >
           <span>Log Club Duty</span>
         </button>
@@ -98,7 +98,7 @@
           onclick={() => activeTab = "leaderboard"}
           class="flex-1 min-w-[130px] py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer {activeTab === 'leaderboard'
             ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
-            : 'text-[var(--ntnui-black)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
+            : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--ntnui-yellow)]/15'}"
         >
           <span>Leaderboards</span>
         </button>
@@ -109,7 +109,7 @@
           onclick={() => activeTab = "history"}
           class="flex-1 min-w-[130px] py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer {activeTab === 'history'
             ? 'bg-[var(--ntnui-yellow)] text-[var(--ntnui-black-dark)] shadow-xs'
-            : 'text-[var(--ntnui-black)] hover:text-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-yellow)]/15'}"
+            : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--ntnui-yellow)]/15'}"
         >
           <span>Activity Log</span>
         </button>
@@ -232,13 +232,13 @@
   {/if}
 
   <!-- Footer -->
-  <footer class="mt-auto py-6 border-t border-[var(--ntnui-black)]/30 bg-white text-center text-xs text-[var(--ntnui-black-dark)]">
+  <footer class="mt-auto py-6 border-t border-[var(--color-text)]/30 bg-[var(--color-surface)] text-center text-xs text-[var(--color-text)]">
     <div class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-      <div class="font-bold text-[var(--ntnui-black-dark)]">
+      <div class="font-bold text-[var(--color-text)]">
         {settings?.teamName || 'H4A'} {settings?.season || '26/27'}
       </div>
 
-      <div class="text-[var(--ntnui-black-dark)]">
+      <div class="text-[var(--color-text)]">
         Team Fines & Club Duty Management Portal
       </div>
     </div>

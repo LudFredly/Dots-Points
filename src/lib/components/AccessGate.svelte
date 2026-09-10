@@ -36,7 +36,7 @@
 </script>
 
 <div class="min-h-[85vh] flex items-center justify-center p-4">
-  <div class="bg-white w-full max-w-md rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 space-y-6 text-center">
+  <div class="bg-[var(--color-surface)] w-full max-w-md rounded-2xl shadow-sm border border-[var(--color-border)] p-6 sm:p-8 space-y-6 text-center">
     <!-- Header Icon -->
     <div class="w-16 h-16 mx-auto rounded-2xl bg-[var(--ntnui-black-dark)] text-emerald-400 flex items-center justify-center shadow-inner">
       <Shield class="w-8 h-8" />
@@ -44,14 +44,14 @@
 
     <!-- Title & Info -->
     <div>
-      <h2 class="text-xl sm:text-2xl font-black text-[var(--ntnui-black-dark)] tracking-tight">
+      <h2 class="text-xl sm:text-2xl font-black text-[var(--color-text)] tracking-tight">
         {h4aStore.settings?.teamName || "H4A"} {h4aStore.settings?.season || "26/27"}
       </h2>
       <p class="text-xs sm:text-sm font-semibold text-emerald-600 uppercase tracking-wider mt-0.5">
         Botekasse & Dugnadsportal
       </p>
-      <p class="text-xs sm:text-sm text-slate-500 mt-2">
-        Portalen er lukket for allmennheten. Oppgi lagets tilgangsnøkkel (<span class="font-mono text-slate-700 font-semibold">ACCESS_KEY</span>) for å åpne siden.
+      <p class="text-xs sm:text-sm text-[var(--color-text-muted)] mt-2">
+        Portalen er lukket for allmennheten. Oppgi lagets tilgangsnøkkel (<span class="font-mono text-[var(--color-text)] font-semibold">ACCESS_KEY</span>) for å åpne siden.
       </p>
     </div>
 
@@ -65,7 +65,7 @@
     <!-- Key Entry Form -->
     <form onsubmit={handleSubmit} class="space-y-4 text-left">
       <div>
-        <label for="portal-key-input" class="block text-xs font-bold text-slate-700 mb-1.5">
+        <label for="portal-key-input" class="block text-xs font-bold text-[var(--color-text)] mb-1.5">
           Lagets tilgangsnøkkel
         </label>
         <div class="relative">
@@ -76,9 +76,9 @@
             bind:value={inputKey}
             required
             autocomplete="current-password"
-            class="w-full px-4 py-3 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 focus:bg-white focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 rounded-xl text-[var(--ntnui-black-dark)] font-mono text-sm pr-10 transition-all"
+            class="w-full px-4 py-3 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 focus:bg-[var(--color-surface)] focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 rounded-xl text-[var(--color-text)] font-mono text-sm pr-10 transition-all"
           />
-          <div class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+          <div class="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none">
             <KeyRound class="w-4 h-4" />
           </div>
         </div>
@@ -95,7 +95,7 @@
     </form>
 
     <!-- Footer Help -->
-    <div class="pt-4 border-t border-slate-100 flex flex-col gap-2.5 text-xs text-slate-400">
+    <div class="pt-4 border-t border-[var(--color-border)] flex flex-col gap-2.5 text-xs text-[var(--color-text-faint)]">
       <p>
         Har du ikke nøkkelen? Spør lagkaptein eller kasserer på Spond/chat.
       </p>

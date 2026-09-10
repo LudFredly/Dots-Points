@@ -2,24 +2,103 @@
 
 @layer base {
   body {
-    @apply bg-[var(--ntnui-black)]/5 text-[var(--ntnui-black-dark)] antialiased font-sans min-h-screen selection:bg-emerald-200 selection:text-emerald-900;
+    @apply bg-[var(--color-bg)] text-[var(--color-text)] antialiased font-sans min-h-screen selection:bg-emerald-200 selection:text-emerald-900;
   }
 }
 
 :root {
-  color-scheme: light;
+  /* Sier til nettleseren at siden selv støtter både lyst og mørkt tema,
+     slik at f.eks. Android/Chrome sin automatiske "tving mørk modus"
+     (som gjetter farger og ofte gir dårlig kontrast) ikke slår inn. */
+  color-scheme: light dark;
 
+  /* ---- NTNUI merkevarefarger (samme i lys/mørk) ---- */
   --ntnui-green: #00843D;
+  --ntnui-green-dark: #006A3A;
   --ntnui-red: #E4002B;
   --ntnui-yellow: #FEDB00;
+  --ntnui-yellow-hover: #e6c600;
+  --ntnui-yellow-active: #ccb000;
   --ntnui-black: #2D2926;
   --ntnui-black-light: #514b47;
   --ntnui-black-dark: #1f1d1b;
-  
-  /* Tekstfarger */
+
+  /* Tekst på fargede flater (endres ikke mellom temaene) */
   --text-on-green: #FFFFFF;
   --text-on-red: #FFFFFF;
   --text-on-yellow: #2D2926;
   --text-on-black: #FFFFFF;
+
+  /* ---- Semantiske tokens: dette er det komponentene skal bruke ----
+     Ved å style mot disse (i stedet for bg-white, text-slate-500 osv.
+     direkte) trenger vi kun å endre fargene ett sted for å style om
+     hele appen - inkludert dark mode. */
+  --color-bg: #f6f5f4;              /* tilsvarer tidligere ntnui-black/5 på hvitt */
+  --color-surface: #ffffff;         /* kort, modaler, paneler */
+  --color-surface-muted: #f1f5f9;   /* svakt skilt bakgrunn (var. bg-slate-100) */
+  --color-surface-muted-2: #e2e8f0; /* enda ett hakk (var. bg-slate-200) */
+
+  --color-text: var(--ntnui-black-dark);       /* primær tekst */
+  --color-text-subtle: #334155;                /* var. text-slate-700 */
+  --color-text-muted: #64748b;                 /* var. text-slate-500 */
+  --color-text-faint: #94a3b8;                  /* var. text-slate-400 */
+
+  --color-border: #e2e8f0;          /* var. border-slate-200/100 */
+  --color-border-strong: #334155;   /* var. border-slate-700 */
+
+  --color-error: #FF4D4D;
+
+    /* ---- Pallplassering (gull/sølv/bronse) ---- */
+  --medal-gold-from: #d4a017;
+  --medal-gold-via: #ffe08a;
+  --medal-gold-to: #d4a017;
+  --medal-gold-border: #b8860b;
+  --medal-gold-text: #4a2f04;
+
+  --medal-silver-from: #94a0ad;
+  --medal-silver-via: #eef1f4;
+  --medal-silver-to: #94a0ad;
+  --medal-silver-border: #78838f;
+  --medal-silver-text: #2b3138;
+
+  --medal-bronze-from: #a0562d;
+  --medal-bronze-via: #e3a373;
+  --medal-bronze-to: #a0562d;
+  --medal-bronze-border: #8a4726;
+  --medal-bronze-text: #3a1e0f;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: var(--ntnui-black-dark);
+    --color-surface: #262220;
+    --color-surface-muted: #332e2b;
+    --color-surface-muted-2: #3d3733;
+
+    --color-text: #f5f3f1;
+    --color-text-subtle: #d9d5d1;
+    --color-text-muted: #a39d97;
+    --color-text-faint: #7d7772;
+
+    --color-border: #4a433d;
+    --color-border-strong: #6b625a;
+
+        --medal-gold-from: #6b4c0a;
+    --medal-gold-via: #d9a92f;
+    --medal-gold-to: #6b4c0a;
+    --medal-gold-border: #a8791c;
+    --medal-gold-text: #fff3d0;
+
+    --medal-silver-from: #454c53;
+    --medal-silver-via: #a9b2ba;
+    --medal-silver-to: #454c53;
+    --medal-silver-border: #6b7580;
+    --medal-silver-text: #f2f4f6;
+
+    --medal-bronze-from: #5c3116;
+    --medal-bronze-via: #b06b3c;
+    --medal-bronze-to: #5c3116;
+    --medal-bronze-border: #7a4322;
+    --medal-bronze-text: #ffe4cc;
+  }
+}

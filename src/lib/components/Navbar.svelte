@@ -34,9 +34,37 @@
   const totalDugnadHours = $derived(
     approvedDugnad.reduce((sum, d) => sum + (d.hours || 0), 0)
   );
+
+  // Skjul navbar-innholdet (ned til stripene) når man scroller nedover på
+  // mobil, så det ikke tar for mye av skjermen. Vises igjen ved scroll opp
+  // eller nær toppen av siden.
+  let navOffset = $state(0);
+  let navContent = $state<HTMLDivElement | null>(null);
+
+  function handleScroll() {
+    const isPhone = window.innerWidth <= 600 || window.innerHeight <= 600;
+
+    if (!isPhone) {
+      navOffset = 0;
+      return;
+    }
+
+    const maxOffset = Math.max(0, (navContent?.offsetHeight ?? 0) - 5);
+
+    navOffset = Math.min(window.scrollY, maxOffset);
+  }
 </script>
 
-<header class="bg-[var(--ntnui-green)] text-white shadow-md sticky top-0 z-30">
+<svelte:window onscroll={handleScroll} />
+
+<header
+  class="bg-[var(--ntnui-green)] text-white shadow-md sticky top-0 z-30"
+  style:transform={`translateY(-${navOffset}px)`}
+>
+  <div
+    bind:this={navContent}
+    class="overflow-hidden"
+  >
   <div class="max-w-5xl mx-auto px-4 py-3 sm:px-6">
     <div class="flex items-center justify-between gap-3">
 
@@ -62,7 +90,7 @@
         <button
           type="button"
           onclick={onOpenRules}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--ntnui-yellow)] hover:bg-[#e6c600] active:bg-[#ccb000] transition-all text-[var(--ntnui-black-dark)] cursor-pointer shadow-xs"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--ntnui-yellow)] hover:bg-[var(--ntnui-yellow-hover)] active:bg-[var(--ntnui-yellow-active)] transition-all text-[var(--ntnui-black-dark)] cursor-pointer shadow-xs"
           title="View official penalty fine rules"
         >
           <BookOpen class="w-3.5 h-3.5 text-[var(--ntnui-black-dark)]" />
@@ -76,7 +104,7 @@
             onclick={() => onSelectTab(activeTab === 'admin' ? 'fine-form' : 'admin')}
             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs relative {activeTab === 'admin'
               ? 'bg-[var(--ntnui-black-dark)] text-[var(--ntnui-yellow)] ring-2 ring-white/40'
-              : 'bg-[var(--ntnui-yellow)] hover:bg-[#e6c600] active:bg-[#ccb000] text-[var(--ntnui-black-dark)]'}"
+              : 'bg-[var(--ntnui-yellow)] hover:bg-[var(--ntnui-yellow-hover)] active:bg-[var(--ntnui-yellow-active)] text-[var(--ntnui-black-dark)]'}"
             title={activeTab === 'admin' ? 'Exit Admin Dashboard' : 'Open Admin Dashboard'}
           >
             <Settings
@@ -123,12 +151,12 @@
     </div>
     </div>
   </div>
+  </div>
 
-  <!-- NTNUI Accent Stripes -->
+  <!-- NTNUI Accent Stripes - alltid synlige, selv når resten er skjult -->
   <div class="h-1 bg-[var(--ntnui-yellow)]"></div>
   <div class="h-1 bg-[var(--ntnui-black-dark)]"></div>
   <div class="h-1 bg-[var(--ntnui-yellow)]"></div>
   <div class="h-1 bg-[var(--ntnui-green)]"></div>
 
-  
 </header>

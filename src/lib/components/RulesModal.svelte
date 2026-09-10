@@ -44,23 +44,23 @@
 </script>
 
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--ntnui-black-dark)]/60 backdrop-blur-xs">
-  <div class="bg-white rounded-3xl shadow-2xl border border-[var(--ntnui-black-dark)] w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+  <div class="bg-[var(--color-surface)] rounded-3xl shadow-2xl border border-[var(--color-border-strong)] w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
 
     <!-- Header -->
     <div class="p-4 sm:p-6 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] grid grid-cols-[1fr_auto_1fr] items-center shrink-0">
       <!-- Left Icon -->
       <div class="flex items-center justify-start">
-        <div class="w-10 h-10 rounded-xl text-[var(--ntnui-black-dark)] flex items-center justify-center font-bold">
+        <div class="w-10 h-10 rounded-xl text-[var(--color-text)] flex items-center justify-center font-bold">
           <BookOpen class="w-5 h-5" />
         </div>
       </div>
 
       <!-- Centered Text -->
       <div class="text-center px-3">
-        <h3 class="text-base sm:text-lg font-bold text-[var(--ntnui-black-dark)] tracking-tight">
+        <h3 class="text-base sm:text-lg font-bold text-[var(--color-text)] tracking-tight">
           Official Penalty Rules & Occasions
         </h3>
-        <p class="text-xs text-[var(--ntnui-black-dark)]/85">
+        <p class="text-xs text-[var(--color-text)]/85">
           {h4aStore.settings?.teamName || 'H4A'} {h4aStore.settings?.season || '26/27'} penalty catalog
         </p>
       </div>
@@ -70,7 +70,7 @@
         <button
           type="button"
           onclick={onClose}
-          class="w-10 h-10 rounded-full hover:bg-[var(--ntnui-black-light)]/50 text-[var(--ntnui-black-dark)] flex items-center justify-center transition-colors cursor-pointer"
+          class="w-10 h-10 rounded-full hover:bg-[var(--ntnui-black-light)]/50 text-[var(--color-text)] flex items-center justify-center transition-colors cursor-pointer"
           aria-label="Close dialog"
         >
           <X class="w-4 h-4" />
@@ -79,15 +79,15 @@
     </div>
 
     <!-- Search -->
-    <div class="p-4 bg-[var(--ntnui-black)]/5 border-b border-[var(--ntnui-black)]/15 flex items-center justify-between gap-3 shrink-0">
+    <div class="p-4 bg-[var(--color-text)]/5 border-b border-[var(--color-text)]/15 flex items-center justify-between gap-3 shrink-0">
       <div class="relative w-full">
-        <Search class="w-4 h-4 text-[var(--ntnui-black-light)] absolute left-3 top-1/2 -translate-y-1/2" />
+        <Search class="w-4 h-4 text-[var(--color-text-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
 
         <input
           type="text"
           placeholder="Search penalty rules..."
           bind:value={searchQuery}
-          class="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-white border border-[var(--ntnui-black)]/30 rounded-xl text-[var(--ntnui-black-dark)] placeholder:text-[var(--ntnui-black-light)]/70 focus:outline-none focus:border-[var(--ntnui-green)] focus:ring-2 focus:ring-[var(--ntnui-green)]/20"
+          class="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-xl text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/70 focus:outline-none focus:border-[var(--ntnui-green)] focus:ring-2 focus:ring-[var(--ntnui-green)]/20"
         />
       </div>
     </div>
@@ -95,22 +95,22 @@
     <!-- Rules List -->
     <div class="p-4 sm:p-6 overflow-y-auto space-y-2.5 flex-1">
       {#if filteredRules.length === 0}
-        <div class="text-center py-8 text-[var(--ntnui-black-light)] text-xs sm:text-sm">
+        <div class="text-center py-8 text-[var(--color-text-muted)] text-xs sm:text-sm">
           No penalty rules match your search.
         </div>
       {:else}
         {#each filteredRules as rule}
-          <div class="p-3.5 bg-[var(--ntnui-black)]/5 hover:bg-[var(--ntnui-green)]/10 rounded-2xl border border-[var(--ntnui-black)]/15 flex items-start justify-between gap-3 transition-colors">
+          <div class="p-3.5 bg-[var(--color-text)]/5 hover:bg-[var(--ntnui-green)]/10 rounded-2xl border border-[var(--color-text)]/15 flex items-start justify-between gap-3 transition-colors">
 
             <div class="min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <h4 class="font-bold text-[var(--ntnui-black-dark)] text-xs sm:text-sm">
+                <h4 class="font-bold text-[var(--color-text)] text-xs sm:text-sm">
                   {rule.title}
                 </h4>
               </div>
 
               {#if rule.description}
-                <p class="text-xs text-[var(--ntnui-black-light)] mt-0.5">
+                <p class="text-xs text-[var(--color-text-muted)] mt-0.5">
                   {rule.description}
                 </p>
               {/if}
@@ -138,7 +138,7 @@
                 {#if (rule.fineMatch == null || rule.fineMatch <= 0) &&
                   (rule.finePractice == null || rule.finePractice <= 0) &&
                   (rule.fineSocial == null || rule.fineSocial <= 0)}
-                  <span class="px-2 py-0.5 bg-[var(--ntnui-black)]/5 rounded border border-[var(--ntnui-black)]/15 font-bold text-[var(--ntnui-black-dark)]">
+                  <span class="px-2 py-0.5 bg-[var(--color-text)]/5 rounded border border-[var(--color-text)]/15 font-bold text-[var(--color-text)]">
                     Standard: {rule.fine || 0} kr
                   </span>
                 {/if}
@@ -151,7 +151,7 @@
     </div>
 
     <!-- Footer -->
-    <div class="p-4 bg-[var(--ntnui-black)]/5 border-t border-[var(--ntnui-black)]/15 flex font-bold items-center justify-between text-xs text-[var(--ntnui-black-light)] shrink-0">
+    <div class="p-4 bg-[var(--color-text)]/5 border-t border-[var(--color-text)]/15 flex font-bold items-center justify-between text-xs text-[var(--color-text-muted)] shrink-0">
       <span>{rules.length} active penalty rules</span>
 
       <button

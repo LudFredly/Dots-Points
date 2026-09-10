@@ -85,45 +85,45 @@
   }
 </script>
 
-<div class="bg-white rounded-2xl shadow-xs border border-[var(--ntnui-black-dark)] overflow-hidden">
+<div class="bg-[var(--color-surface)] rounded-2xl shadow-xs border border-[var(--color-border-strong)] overflow-hidden">
   <!-- Header with Filters -->
   <div class="p-4 sm:p-5 bg-[var(--ntnui-green)] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--ntnui-black-dark)]">
     <div>
-      <h3 class="text-lg sm:text-xl font-bold text-[var(--ntnui-black-dark)] tracking-tight">
+      <h3 class="text-lg sm:text-xl font-bold text-[var(--color-text)] tracking-tight">
         Activity Log
       </h3>
-      <p class="text-sm sm:text-base text-[var(--ntnui-black-dark)]/85">
+      <p class="text-sm sm:text-base text-[var(--color-text)]/85">
         Live feed of submitted fines and logged volunteer hours.
       </p>
     </div>
 
     <!-- Filter Buttons -->
-    <div class="flex items-center gap-1 bg-white border border-[var(--ntnui-black-dark)] p-1 rounded-xl text-xs font-semibold">
+    <div class="flex items-center gap-1 bg-[var(--color-surface)] border border-[var(--color-border-strong)] p-1 rounded-xl text-xs font-semibold">
       <button
         type="button"
         onclick={() => filterType = "all"}
-        class="px-2.5 py-1 rounded-lg transition-all cursor-pointer {filterType === 'all' ? 'bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)]'  : 'text-[var(--ntnui-black)] hover:text-[var(--ntnui-black)] hover:bg-[var(--ntnui-green)]/30'}"
+        class="px-2.5 py-1 rounded-lg transition-all cursor-pointer {filterType === 'all' ? 'bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)]'  : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text-subtle)] hover:bg-[var(--ntnui-green)]/30'}"
       >
         All
       </button>
       <button
         type="button"
         onclick={() => filterType = "fines"}
-        class="px-2.5 py-1 rounded-lg transition-all cursor-pointer {filterType === 'fines' ? 'bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)]'  : 'text-[var(--ntnui-black)] hover:text-[var(--ntnui-black)] hover:bg-[var(--ntnui-green)]/30'}"
+        class="px-2.5 py-1 rounded-lg transition-all cursor-pointer {filterType === 'fines' ? 'bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)]'  : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text-subtle)] hover:bg-[var(--ntnui-green)]/30'}"
       >
         Fines
       </button>
       <button
         type="button"
         onclick={() => filterType = "dugnad"}
-        class="px-2.5 py-1 rounded-lg transition-all cursor-pointer {filterType === 'dugnad' ? 'bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)]'  : 'text-[var(--ntnui-black)] hover:text-[var(--ntnui-black)] hover:bg-[var(--ntnui-green)]/30'}"
+        class="px-2.5 py-1 rounded-lg transition-all cursor-pointer {filterType === 'dugnad' ? 'bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)]'  : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text-subtle)] hover:bg-[var(--ntnui-green)]/30'}"
       >
         Volunteer
       </button>
       <button
         type="button"
         onclick={() => filterType = "pending"}
-        class="px-2.5 py-1 rounded-lg transition-all cursor-pointer {filterType === 'pending' ? 'bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)]'  : 'text-[var(--ntnui-black)] hover:text-[var(--ntnui-black)] hover:bg-[var(--ntnui-green)]/30'}"
+        class="px-2.5 py-1 rounded-lg transition-all cursor-pointer {filterType === 'pending' ? 'bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)]'  : 'text-[var(--color-text-subtle)] hover:text-[var(--color-text-subtle)] hover:bg-[var(--ntnui-green)]/30'}"
       >
         Pending
       </button>
@@ -131,14 +131,14 @@
   </div>
 
   <!-- Content List -->
-  <div class="divide-y divide-slate-100">
+  <div class="divide-y divide-[var(--color-border)]">
     {#if combinedHistory().length === 0}
-      <div class="p-8 text-center text-slate-400 text-xs sm:text-sm">
+      <div class="p-8 text-center text-[var(--color-text-faint)] text-xs sm:text-sm">
         No entries found in this category.
       </div>
     {:else}
       {#each combinedHistory() as entry}
-        <div class="p-3 sm:pl-5 sm:pr-6 flex items-center justify-between hover:bg-[var(--ntnui-black)]/5 transition-colors">
+        <div class="p-3 sm:pl-5 sm:pr-6 flex items-center justify-between hover:bg-[var(--color-text)]/5 transition-colors">
           <div class="flex items-center gap-5 min-w-0">
             <!-- Kind Icon -->
             <div
@@ -153,7 +153,7 @@
 
             <div class="min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-bold text-[var(--ntnui-black-dark)] text-xs sm:text-sm">
+                <span class="font-bold text-[var(--color-text)] text-xs sm:text-sm">
                   {entry.personName}
                 </span>
 
@@ -165,11 +165,11 @@
                 {/if}
               </div>
 
-              <div class="text-xs text-[var(--ntnui-black)] font-medium mt-0.5 line-clamp-2">
+              <div class="text-xs text-[var(--color-text-subtle)] font-medium mt-0.5 line-clamp-2">
                 {entry.title}
               </div>
 
-              <div class="text-[11px] text-[var(--ntnui-black-light)] mt-0.5 flex items-center gap-1 flex-wrap">
+              <div class="text-[11px] text-[var(--color-text-muted)] mt-0.5 flex items-center gap-1 flex-wrap">
                 <span>{formatDate(entry.date)}</span>
                 {#if entry.reportedBy && entry.reportedBy !== "Teammate"}
                   <span>• By {entry.reportedBy}</span>
@@ -183,10 +183,10 @@
 
           <!-- Value Badge -->
           <div class="shrink-0 self-center text-center min-w-[52px]">
-            <div class="font-black text-xs sm:text-sm {entry.kind === 'fine' ? 'text-[var(--ntnui-black-dark)]' : 'text-[var(--ntnui-green)]'}">
+            <div class="font-black text-xs sm:text-sm {entry.kind === 'fine' ? 'text-[var(--color-text)]' : 'text-[var(--ntnui-green)]'}">
               {entry.value}
             </div>
-            <div class="text-[10px] text-[var(--ntnui-black-light)] uppercase tracking-wider">
+            <div class="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">
               {entry.kind === 'fine' ? 'penalty' : 'reward'}
             </div>
           </div>

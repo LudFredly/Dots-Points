@@ -201,17 +201,17 @@
   }
 </script>
 
-<div class="bg-white rounded-2xl shadow-xs border-1 border-[var(--ntnui-black-dark)] overflow-hidden">
+<div class="bg-[var(--color-surface)] rounded-2xl shadow-xs border-1 border-[var(--color-border-strong)] overflow-hidden">
 
   <!-- Card Header -->
   <div class="bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] p-5 sm:p-6">
     <div class="flex items-center justify-center gap-3 text-center">
       <div>
-        <h2 class="text-lg sm:text-xl font-bold text-[var(--ntnui-black-dark)] tracking-tight">
+        <h2 class="text-lg sm:text-xl font-bold text-[var(--color-text)] tracking-tight">
           Log Club Duty
         </h2>
 
-        <p class="text-sm sm:text-base text-[var(--ntnui-black-dark)]/85">
+        <p class="text-sm sm:text-base text-[var(--color-text)]/85">
           Record work that has been performed for the team/club.
         </p>
       </div>
@@ -241,7 +241,7 @@
       <div class="flex items-center justify-between">
         <label
           for="dugnad-player-select"
-          class="text-xs sm:text-sm font-bold text-[var(--ntnui-black-dark)] flex items-center gap-1.5"
+          class="text-xs sm:text-sm font-bold text-[var(--color-text)] flex items-center gap-1.5"
         >
           <span>1. Who performed the club duty?</span>
           <span class="text-[var(--ntnui-red)] font-bold">*</span>
@@ -252,7 +252,7 @@
         <select
           id="dugnad-player-select"
           bind:value={selectedPlayerId}
-          class="w-full h-11 px-3.5 bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 focus:border-[var(--ntnui-green)] focus:bg-white focus:outline-none focus:ring-0 rounded-xl text-[var(--ntnui-black-dark)] font-medium text-xs sm:text-sm transition-all appearance-none cursor-pointer pr-10 shadow-2xs"
+          class="w-full h-11 px-3.5 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 focus:border-[var(--ntnui-green)] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-0 rounded-xl text-[var(--color-text)] font-medium text-xs sm:text-sm transition-all appearance-none cursor-pointer pr-10 shadow-2xs"
         >
           <option value="" disabled selected>-- Select player --</option>
 
@@ -265,16 +265,16 @@
           {/each}
         </select>
 
-        <div class="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--ntnui-black-light)]/70 text-xs">
+        <div class="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-text-muted)]/70 text-xs">
           ▼
         </div>
       </div>
     </div>
 
     <!-- Step 2: Activity Selection -->
-    <div class="space-y-2 pt-3 border-t border-[var(--ntnui-black)]/10">
+    <div class="space-y-2 pt-3 border-t border-[var(--color-text)]/10">
 
-      <div class="text-xs sm:text-sm font-bold text-[var(--ntnui-black-dark)]">
+      <div class="text-xs sm:text-sm font-bold text-[var(--color-text)]">
         <span>2. Choose Duty Activity</span>
         <span class="text-[var(--ntnui-red)] font-bold">*</span>
       </div>
@@ -289,10 +289,10 @@
             onclick={() => handleActivityChange(act.title)}
             class="p-3 rounded-xl border text-left transition-all flex items-center justify-between gap-3 cursor-pointer {isSelected
               ? 'bg-[var(--ntnui-green)]/10 border-[var(--ntnui-green)] ring-1 ring-[var(--ntnui-green)] shadow-2xs'
-              : 'bg-white border-[var(--ntnui-black)]/30 hover:border-[var(--ntnui-black)]/40 hover:bg-[var(--ntnui-green)]/10'}"
+              : 'bg-[var(--color-surface)] border-[var(--color-text)]/30 hover:border-[var(--color-text)]/40 hover:bg-[var(--ntnui-green)]/10'}"
           >
             <div class="min-w-0">
-              <div class="text-xs sm:text-sm font-bold text-[var(--ntnui-black-dark)] leading-tight">
+              <div class="text-xs sm:text-sm font-bold text-[var(--color-text)] leading-tight">
                 {act.title}
               </div>
             </div>
@@ -300,7 +300,7 @@
             <div
               class="shrink-0 text-xs font-semibold px-2 py-1 rounded-md border {isSelected
                 ? 'bg-[var(--ntnui-green)] text-white border-[var(--ntnui-green)]'
-                : 'bg-[var(--ntnui-black)]/5 text-[var(--ntnui-black-dark)] border-[var(--ntnui-black)]/15'}"
+                : 'bg-[var(--color-text)]/5 text-[var(--color-text)] border-[var(--color-text)]/15'}"
             >
               {act.pointsPer} {act.pointsType === "fixed" ? "pts" : "pts/hr"}
             </div>
@@ -315,7 +315,7 @@
             type="text"
             placeholder="Describe the duty performed..."
             bind:value={customActivityTitle}
-            class="w-full px-3 py-2 text-xs sm:text-sm bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-xl focus:bg-white focus:outline-none focus:border-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] placeholder:text-[var(--ntnui-black-light)]/70"
+            class="w-full px-3 py-2 text-xs sm:text-sm bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-xl focus:bg-[var(--color-surface)] focus:outline-none focus:border-[var(--ntnui-green)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/70"
           />
         </div>
       {/if}
@@ -323,7 +323,7 @@
     </div>
 
     <!-- Step 3: Hours & Travel -->
-    <div class="space-y-4 pt-3 border-t border-[var(--ntnui-black)]/10">
+    <div class="space-y-4 pt-3 border-t border-[var(--color-text)]/10">
 
       <div
         class:grid-cols-1={activeActivityObj?.pointsType === "fixed"}
@@ -337,7 +337,7 @@
           <div class="space-y-1.5">
             <label
               for="hours-input"
-              class="text-xs font-bold text-[var(--ntnui-black-dark)] flex items-center gap-1"
+              class="text-xs font-bold text-[var(--color-text)] flex items-center gap-1"
             >
               <span>Duty Hours Worked</span>
             </label>
@@ -345,7 +345,7 @@
             <div class="relative">
               <div
                 id="hours-input"
-                class="w-full h-10 px-3.5 pr-10 bg-white border border-[var(--ntnui-black)]/30 rounded-xl text-[var(--ntnui-black-dark)] font-bold text-sm flex items-center"
+                class="w-full h-10 px-3.5 pr-10 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-xl text-[var(--color-text)] font-bold text-sm flex items-center"
                 aria-label="Duty Hours Worked"
                 role="spinbutton"
                 aria-valuemin="0.25"
@@ -359,7 +359,7 @@
                 <button
                   type="button"
                   onclick={() => adjustHours(0.25)}
-                  class="flex-1 w-8 flex items-center justify-center rounded-t-lg text-xs text-[var(--ntnui-black-light)]/70 hover:bg-[var(--ntnui-green)]/10 hover:text-[var(--ntnui-green)] active:bg-[var(--ntnui-green)]/20 cursor-pointer"
+                  class="flex-1 w-8 flex items-center justify-center rounded-t-lg text-xs text-[var(--color-text-muted)]/70 hover:bg-[var(--ntnui-green)]/10 hover:text-[var(--ntnui-green)] active:bg-[var(--ntnui-green)]/20 cursor-pointer"
                   aria-label="Increase duty hours by 15 minutes"
                 >
                   ▲
@@ -368,7 +368,7 @@
                 <button
                   type="button"
                   onclick={() => adjustHours(-0.25)}
-                  class="flex-1 w-8 flex items-center justify-center rounded-b-lg text-xs text-[var(--ntnui-black-light)]/70 hover:bg-[var(--ntnui-red)]/10 hover:text-[var(--ntnui-red)] active:bg-[var(--ntnui-red)]/20 cursor-pointer"
+                  class="flex-1 w-8 flex items-center justify-center rounded-b-lg text-xs text-[var(--color-text-muted)]/70 hover:bg-[var(--ntnui-red)]/10 hover:text-[var(--ntnui-red)] active:bg-[var(--ntnui-red)]/20 cursor-pointer"
                   aria-label="Decrease duty hours by 15 minutes"
                 >
                   ▼
@@ -381,13 +381,13 @@
 
         <!-- Duty Points -->
         <div class="space-y-1.5">
-          <div class="text-xs font-bold text-[var(--ntnui-black-dark)] flex items-center gap-1">
+          <div class="text-xs font-bold text-[var(--color-text)] flex items-center gap-1">
             <span>Duty Points</span>
           </div>
 
-          <div class="h-10 px-3 bg-white border border-[var(--ntnui-black)]/30 rounded-xl flex items-center justify-between text-[var(--ntnui-black)] font-black text-sm">
+          <div class="h-10 px-3 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-xl flex items-center justify-between text-[var(--color-text-subtle)] font-black text-sm">
             <span>{dutyPoints}</span>
-            <span class="text-xs font-medium text-[var(--ntnui-black)]/80">
+            <span class="text-xs font-medium text-[var(--color-text-subtle)]/80">
               points
             </span>
           </div>
@@ -403,10 +403,10 @@
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
 
             <div class="flex items-center gap-2">
-              <Navigation class="w-4 h-4 text-[var(--ntnui-black-dark)] shrink-0" />
+              <Navigation class="w-4 h-4 text-[var(--color-text)] shrink-0" />
 
               <div>
-                <div class="text-xs sm:text-sm font-bold text-[var(--ntnui-black-dark)] leading-tight">
+                <div class="text-xs sm:text-sm font-bold text-[var(--color-text)] leading-tight">
                   I had to travel specifically to/from this club duty
                 </div>
               </div>
@@ -418,8 +418,8 @@
                 type="button"
                 onclick={() => hadTravel = false}
                 class="px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer {!hadTravel
-                  ? 'bg-[var(--ntnui-yellow)]/30 text-[var(--ntnui-black-dark)] border-[var(--ntnui-yellow)] shadow-2xs'
-                  : 'bg-white text-[var(--ntnui-black-dark)] border-[var(--ntnui-yellow)]/30 hover:bg-[var(--ntnui-yellow)]/5'}"
+                  ? 'bg-[var(--ntnui-yellow)]/30 text-[var(--color-text)] border-[var(--ntnui-yellow)] shadow-2xs'
+                  : 'bg-[var(--color-surface)] text-[var(--color-text)] border-[var(--ntnui-yellow)]/30 hover:bg-[var(--ntnui-yellow)]/5'}"
               >
                 No
               </button>
@@ -428,8 +428,8 @@
                 type="button"
                 onclick={() => hadTravel = true}
                 class="px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer {!hadTravel
-                  ? 'bg-white text-[var(--ntnui-black-dark)] border-[var(--ntnui-yellow)]/30 hover:bg-[var(--ntnui-yellow)]/5'
-                  : 'bg-[var(--ntnui-yellow)]/30 text-[var(--ntnui-black-dark)] border-[var(--ntnui-yellow)] shadow-2xs'}"
+                  ? 'bg-[var(--color-surface)] text-[var(--color-text)] border-[var(--ntnui-yellow)]/30 hover:bg-[var(--ntnui-yellow)]/5'
+                  : 'bg-[var(--ntnui-yellow)]/30 text-[var(--color-text)] border-[var(--ntnui-yellow)] shadow-2xs'}"
               >
                 Yes
               </button>
@@ -445,7 +445,7 @@
 
                 <label
                   for="travel-hours-input"
-                  class="text-xs font-bold text-[var(--ntnui-black-dark)] flex items-center gap-1"
+                  class="text-xs font-bold text-[var(--color-text)] flex items-center gap-1"
                 >
                   <span>Travel Hours</span>
                 </label>
@@ -454,7 +454,7 @@
 
                   <div class="relative">
 
-                    <div class="w-full h-10 pl-3.5 pr-14 bg-white border border-[var(--ntnui-yellow)]/30 rounded-xl text-[var(--ntnui-black-dark)] font-bold text-sm flex items-center">
+                    <div class="w-full h-10 pl-3.5 pr-14 bg-[var(--color-surface)] border border-[var(--ntnui-yellow)]/30 rounded-xl text-[var(--color-text)] font-bold text-sm flex items-center">
                       {formatHours(travelHours)}
                     </div>
 
@@ -463,7 +463,7 @@
                       <button
                         type="button"
                         onclick={() => adjustTravelHours(0.25)}
-                        class="flex-1 w-8 flex items-center justify-center rounded-t-lg text-xs text-[var(--ntnui-black-light)]/70 hover:bg-[var(--ntnui-yellow)]/10 hover:text-[var(--ntnui-black)] active:bg-[var(--ntnui-yellow)]/20 cursor-pointer"
+                        class="flex-1 w-8 flex items-center justify-center rounded-t-lg text-xs text-[var(--color-text-muted)]/70 hover:bg-[var(--ntnui-yellow)]/10 hover:text-[var(--color-text-subtle)] active:bg-[var(--ntnui-yellow)]/20 cursor-pointer"
                         aria-label="Increase travel hours by 15 minutes"
                       >
                         ▲
@@ -472,7 +472,7 @@
                       <button
                         type="button"
                         onclick={() => adjustTravelHours(-0.25)}
-                        class="flex-1 w-8 flex items-center justify-center rounded-b-lg text-xs text-[var(--ntnui-black-light)]/70 hover:bg-[var(--ntnui-red)]/10 hover:text-[var(--ntnui-red)] active:bg-[var(--ntnui-red)]/20 cursor-pointer"
+                        class="flex-1 w-8 flex items-center justify-center rounded-b-lg text-xs text-[var(--color-text-muted)]/70 hover:bg-[var(--ntnui-red)]/10 hover:text-[var(--ntnui-red)] active:bg-[var(--ntnui-red)]/20 cursor-pointer"
                         aria-label="Decrease travel hours by 15 minutes"
                       >
                         ▼
@@ -485,13 +485,13 @@
 
               <div class="space-y-1">
 
-                <div class="text-xs font-bold text-[var(--ntnui-black-dark)] flex items-center gap-1">
+                <div class="text-xs font-bold text-[var(--color-text)] flex items-center gap-1">
                   <span>Travel Points</span>
                 </div>
 
-                <div class="h-10 px-3 bg-white border border-[var(--ntnui-yellow)]/40 rounded-xl flex items-center justify-between text-[var(--ntnui-black)] font-black text-sm">
+                <div class="h-10 px-3 bg-[var(--color-surface)] border border-[var(--ntnui-yellow)]/40 rounded-xl flex items-center justify-between text-[var(--color-text-subtle)] font-black text-sm">
                   <span>+{travelPoints}</span>
-                  <span class="text-xs font-medium text-[var(--ntnui-black-light)]">
+                  <span class="text-xs font-medium text-[var(--color-text-muted)]">
                     points
                   </span>
                 </div>
@@ -510,9 +510,9 @@
       <div>
         <label
           for="dugnad-comment"
-          class="block text-xs font-bold text-[var(--ntnui-black-dark)] mb-1.5 flex items-center gap-1"
+          class="block text-xs font-bold text-[var(--color-text)] mb-1.5 flex items-center gap-1"
         >
-          <FileText class="w-3.5 h-3.5 text-[var(--ntnui-black-light)]" />
+          <FileText class="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
           <span>Notes / Description (optional)</span>
         </label>
 
@@ -521,17 +521,17 @@
           type="text"
           placeholder="e.g. 'Ran kiosk during match vs OSI'"
           bind:value={comment}
-          class="w-full h-10 px-3.5 text-xs sm:text-sm bg-[var(--ntnui-black)]/5 border border-[var(--ntnui-black)]/30 rounded-xl focus:bg-white focus:outline-none focus:border-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] placeholder:text-[var(--ntnui-black-light)]/70"
+          class="w-full h-10 px-3.5 text-xs sm:text-sm bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-xl focus:bg-[var(--color-surface)] focus:outline-none focus:border-[var(--ntnui-green)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/70"
         />
       </div>
 
     </div>
 
     <!-- Live Total & Submit Bar -->
-    <div class="bg-white text-[var(--ntnui-black-dark)] p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm border border-[var(--ntnui-black)]/30">
+    <div class="bg-[var(--color-surface)] text-[var(--color-text)] p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm border border-[var(--color-text)]/30">
 
       <div>
-        <div class="text-xs text-[var(--ntnui-black-dark)]/85 font-medium">
+        <div class="text-xs text-[var(--color-text)]/85 font-medium">
           Club duty record for
           {selectedPlayer
             ? getPublicDisplayName(selectedPlayer, persons)
@@ -539,7 +539,7 @@
         </div>
 
         <div class="flex items-baseline gap-2 mt-0.5">
-          <span class="text-2xl sm:text-3xl font-black tracking-tight text-[var(--ntnui-black-dark)]">
+          <span class="text-2xl sm:text-3xl font-black tracking-tight text-[var(--color-text)]">
             {totalCalculatedPoints} Total Points
           </span>
         </div>

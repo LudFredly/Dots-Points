@@ -49,7 +49,7 @@
 
 <style>
   button {
-    background-color: #006A3A;
+    background-color: var(--ntnui-green-dark);
     height: 43px;
     border-radius: 8px;
     padding: 10px;
@@ -57,11 +57,12 @@
     font-size: 14px;
     font-weight: 600;
     font-style: semi-bold;
-    color: #FFFFFF;
+    color: var(--text-on-green);
   }
 
   p {
-    color: #FF4D4DD6;
+    color: var(--color-error);
+    opacity: 0.84;
     bottom: 0;
   }
 
@@ -88,6 +89,7 @@
   }
   
   .asterisk {
-    color: #FF4D4DD6;
+    color: var(--color-error);
+    opacity: 0.84;
   }
 </style>
