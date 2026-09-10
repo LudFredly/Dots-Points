@@ -94,7 +94,7 @@
           title="View official penalty fine rules"
         >
           <BookOpen class="w-3.5 h-3.5 text-[var(--ntnui-black-dark)]" />
-          <span class="hidden sm:inline text-[var(--ntnui-black-dark)]">Fine Rules</span>
+          <span class="text-[var(--ntnui-black-dark)]">Fine Rules</span>
         </button>
 
         <!-- Admin -->
