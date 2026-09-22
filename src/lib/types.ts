@@ -26,6 +26,9 @@ export interface FineRule {
 
 export type OccasionType = "Practice" | "Match" | "Social" | "Other";
 
+export type TrialStatus = "requested" | "approved" | "rejected" | "resolved";
+export type TrialOutcome = "acquitted" | "guilty" | "transferred";
+
 export interface FineReport {
   id: string;
   playerId: string; // ID of the person (player or coach)
@@ -38,7 +41,22 @@ export interface FineReport {
   date: string; // ISO string
   eventContext: OccasionType | string; // "Practice", "Match", "Social", "Other"
   status: "pending" | "approved" | "rejected";
+  // Trial ("rettsak") system: a player can contest an approved fine at the next
+  // "botfest". Undefined trialStatus = no trial requested.
+  trialStatus?: TrialStatus;
+  trialRequestedById?: string;
+  trialRequestedByName?: string; // snapshot, in case the person is later removed
+  trialRequestComment?: string; // grounds for appeal, player-submitted
+  trialRequestedAt?: string; // ISO string
+  trialDecidedAt?: string; // ISO string, when admin approved/rejected the request
+  trialOutcome?: TrialOutcome; // set when the trial is resolved at the botfest
+  trialOriginalFine?: number; // snapshot of totalFine before a "guilty" verdict doubles it
+  trialOriginalPlayerId?: string; // snapshot of playerId before a "transferred" verdict reassigns it
+  trialOriginalPlayerName?: string; // snapshot of playerName before a "transferred" verdict reassigns it
+  trialResolvedAt?: string; // ISO string
 }
+
+
 
 export interface DugnadActivity {
   id: string;

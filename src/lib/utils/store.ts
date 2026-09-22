@@ -7,7 +7,8 @@ import type {
   RoleDefinition,
   TeamSettings,
   PlayerBackupData,
-  TeamDataBackup
+  TeamDataBackup,
+  TrialOutcome
 } from "$lib/types";
 import { sortPersonsAlphabetically } from "$lib/utils/nameHelper";
 import { database, isFirebaseConfigured, handleFirestoreError, OperationType } from "$lib/utils/firestore";
@@ -713,7 +714,18 @@ export class H4ADataManager {
               reportedBy: d.reportedBy || "",
               date: d.date || new Date().toISOString(),
               eventContext: d.eventContext || "Practice",
-              status: d.status || "pending"
+              status: d.status || "pending",
+              trialStatus: d.trialStatus,
+              trialRequestedById: d.trialRequestedById,
+              trialRequestedByName: d.trialRequestedByName,
+              trialRequestComment: d.trialRequestComment,
+              trialRequestedAt: d.trialRequestedAt,
+              trialDecidedAt: d.trialDecidedAt,
+              trialOutcome: d.trialOutcome,
+              trialOriginalFine: d.trialOriginalFine,
+              trialOriginalPlayerId: d.trialOriginalPlayerId,
+              trialOriginalPlayerName: d.trialOriginalPlayerName,
+              trialResolvedAt: d.trialResolvedAt
             });
           });
           list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -750,7 +762,8 @@ export class H4ADataManager {
               comment: d.comment || "",
               date: d.date || new Date().toISOString(),
               reportedBy: d.reportedBy || "",
-              status: d.status || "pending"
+              status: d.status || "pending",
+              roleId: d.roleId
             });
           });
           list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -914,6 +927,134 @@ export class H4ADataManager {
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `fines/${fineId}`);
     }
+  }
+
+  // --- Trial ("Rettsak") Operations ---
+  // A player can contest an approved fine; admin approves/rejects the request,
+  // and later resolves an approved trial with a verdict at the next "botfest".
+
+  async requestTrial(fineId: string, requestedByPersonId: string, comment?: string): Promise<void> {
+    const fine = this.fines.find(f => f.id === fineId);
+    const requester = this.persons.find(p => p.id === requestedByPersonId);
+    if (!fine || !requester) {
+      console.error("[H4A Store] requestTrial: fine or person not found", { fineId, requestedByPersonId });
+      return;
+    }
+    if (fine.status !== "approved") {
+      console.error("[H4A Store] requestTrial: fine is not approved, cannot request trial", fineId);
+      return;
+    }
+    if (fine.trialStatus) {
+      console.error("[H4A Store] requestTrial: fine already has an active trial", fineId);
+      return;
+    }
+
+    const displayName = `${requester.firstName} ${requester.lastName}`.trim();
+    await this.updateFine(fineId, {
+      trialStatus: "requested",
+      trialRequestedById: requestedByPersonId,
+      trialRequestedByName: displayName,
+      trialRequestComment: comment?.trim() || undefined,
+      trialRequestedAt: new Date().toISOString()
+    });
+  }
+
+  async decideTrialRequest(fineId: string, approve: boolean): Promise<void> {
+    const fine = this.fines.find(f => f.id === fineId);
+    if (!fine) {
+      console.error("[H4A Store] decideTrialRequest: fine not found", fineId);
+      return;
+    }
+    if (fine.trialStatus !== "requested") {
+      console.error("[H4A Store] decideTrialRequest: fine has no pending trial request", fineId);
+      return;
+    }
+
+    await this.updateFine(fineId, {
+      trialStatus: approve ? "approved" : "rejected",
+      trialDecidedAt: new Date().toISOString()
+    });
+  }
+
+  async resolveTrial(fineId: string, outcome: TrialOutcome, transferToPersonId?: string): Promise<void> {
+    const fine = this.fines.find(f => f.id === fineId);
+    if (!fine) {
+      console.error("[H4A Store] resolveTrial: fine not found", fineId);
+      return;
+    }
+    if (fine.trialStatus !== "approved") {
+      console.error("[H4A Store] resolveTrial: trial is not in approved state", fineId);
+      return;
+    }
+
+    const updates: Partial<FineReport> = {
+      trialStatus: "resolved",
+      trialOutcome: outcome,
+      trialResolvedAt: new Date().toISOString()
+    };
+
+    if (outcome === "acquitted") {
+      // No longer counts toward the fine sum, but the record (and its history) is kept.
+      updates.status = "rejected";
+    } else if (outcome === "guilty") {
+      updates.trialOriginalFine = fine.totalFine;
+      updates.totalFine = fine.totalFine * 2;
+    } else if (outcome === "transferred") {
+      const newPerson = transferToPersonId ? this.persons.find(p => p.id === transferToPersonId) : undefined;
+      if (!newPerson) {
+        console.error("[H4A Store] resolveTrial: transferred outcome requires a valid transferToPersonId", { fineId, transferToPersonId });
+        return;
+      }
+      updates.trialOriginalPlayerId = fine.playerId;
+      updates.trialOriginalPlayerName = fine.playerName;
+      updates.playerId = newPerson.id;
+      updates.playerName = `${newPerson.firstName} ${newPerson.lastName}`.trim();
+    }
+
+    await this.updateFine(fineId, updates);
+  }
+
+  // Clears all trial fields from a fine, regardless of its current trial state
+  // (requested / approved / rejected / resolved), so a new trial can be requested.
+  // Does NOT touch the fine's amount, status, or any other data — a "resolved: guilty"
+  // fine keeps its doubled amount, a "resolved: transferred" fine stays with its new
+  // owner; only the trial bookkeeping fields themselves are removed.
+  async clearTrial(fineId: string): Promise<void> {
+    const fine = this.fines.find(f => f.id === fineId);
+    if (!fine) {
+      console.error("[H4A Store] clearTrial: fine not found", fineId);
+      return;
+    }
+
+    const updates: Partial<FineReport> = {
+      trialStatus: undefined,
+      trialRequestedById: undefined,
+      trialRequestedByName: undefined,
+      trialRequestComment: undefined,
+      trialRequestedAt: undefined,
+      trialDecidedAt: undefined,
+      trialOutcome: undefined,
+      trialOriginalFine: undefined,
+      trialOriginalPlayerId: undefined,
+      trialOriginalPlayerName: undefined,
+      trialResolvedAt: undefined
+    };
+
+    // Reverse whatever the verdict actually changed, so clearing genuinely returns
+    // the fine to its pre-trial state rather than just hiding the trial bookkeeping.
+    if (fine.trialOutcome === "guilty" && fine.trialOriginalFine !== undefined) {
+      updates.totalFine = fine.trialOriginalFine;
+    }
+    if (fine.trialOutcome === "transferred" && fine.trialOriginalPlayerId) {
+      updates.playerId = fine.trialOriginalPlayerId;
+      updates.playerName = fine.trialOriginalPlayerName;
+    }
+    if (fine.trialOutcome === "acquitted") {
+      // Acquittal set status to "rejected" so it stopped counting; restore it.
+      updates.status = "approved";
+    }
+
+    await this.updateFine(fineId, updates);
   }
 
   // --- Dugnad / Volunteer Operations ---
@@ -1602,7 +1743,18 @@ export class H4ADataManager {
             reportedBy: f.reportedBy || "",
             date: f.date || new Date().toISOString(),
             eventContext: f.eventContext || "Other",
-            status: f.status || "approved"
+            status: f.status || "approved",
+            trialStatus: f.trialStatus,
+            trialRequestedById: f.trialRequestedById,
+            trialRequestedByName: f.trialRequestedByName,
+            trialRequestComment: f.trialRequestComment,
+            trialRequestedAt: f.trialRequestedAt,
+            trialDecidedAt: f.trialDecidedAt,
+            trialOutcome: f.trialOutcome,
+            trialOriginalFine: f.trialOriginalFine,
+            trialOriginalPlayerId: f.trialOriginalPlayerId,
+            trialOriginalPlayerName: f.trialOriginalPlayerName,
+            trialResolvedAt: f.trialResolvedAt
           });
         });
       }

@@ -152,7 +152,14 @@
 
     {:else if activeTab === "history"}
 
-      <ActivityHistory {fines} {dugnad} {persons} />
+      <ActivityHistory
+        {fines}
+        {dugnad}
+        {persons}
+        onRequestTrial={async (fineId: string, requestedByPersonId: string, comment?: string) => {
+          await h4aStore.requestTrial(fineId, requestedByPersonId, comment);
+        }}
+      />
 
     {:else if activeTab === "admin"}
 
@@ -226,6 +233,15 @@
         }}
         onRemoveRole={async (personId: string, roleId: string) => {
           await h4aStore.removeRoleFromPerson(personId, roleId);
+        }}
+        onDecideTrialRequest={async (fineId: string, approve: boolean) => {
+          await h4aStore.decideTrialRequest(fineId, approve);
+        }}
+        onResolveTrial={async (fineId: string, outcome, transferToPersonId?: string) => {
+          await h4aStore.resolveTrial(fineId, outcome, transferToPersonId);
+        }}
+        onClearTrial={async (fineId: string) => {
+          await h4aStore.clearTrial(fineId);
         }}
         onUpdateSettings={(newSettings: Partial<TeamSettings>) => {
           h4aStore.updateSettings(newSettings);

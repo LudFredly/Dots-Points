@@ -30,7 +30,8 @@
     RoleDefinition,
     TeamSettings,
     TeamDataBackup,
-    PlayerBackupData
+    PlayerBackupData,
+    TrialOutcome
   } from "$lib/types";
   import { getAdminFullName, getPublicDisplayName } from "$lib/utils/nameHelper";
   import { h4aStore, DEFAULT_DUGNAD_ACTIVITIES, DEFAULT_ROLE_DEFINITIONS } from "$lib/utils/store";
@@ -64,6 +65,9 @@
     onDeleteRoleDefinition,
     onAssignRole,
     onRemoveRole,
+    onDecideTrialRequest,
+    onResolveTrial,
+    onClearTrial,
     onUpdateSettings,
     onResetData,
     onExitAdmin
@@ -96,6 +100,9 @@
     onDeleteRoleDefinition?: (id: string) => void;
     onAssignRole: (personId: string, roleId: string) => Promise<void> | void;
     onRemoveRole: (personId: string, roleId: string) => Promise<void> | void;
+    onDecideTrialRequest: (fineId: string, approve: boolean) => Promise<void> | void;
+    onResolveTrial: (fineId: string, outcome: TrialOutcome, transferToPersonId?: string) => Promise<void> | void;
+    onClearTrial: (fineId: string) => Promise<void> | void;
     onUpdateSettings: (settings: Partial<TeamSettings>) => void;
     onResetData: () => void;
     onExitAdmin?: () => void;
@@ -259,6 +266,21 @@
   // Pending Items
   const pendingFines = $derived(fines.filter(f => f.status === "pending"));
   const pendingDugnad = $derived(dugnad.filter(d => d.status === "pending"));
+  const pendingTrialRequests = $derived(fines.filter(f => f.trialStatus === "requested"));
+  const approvedTrials = $derived(fines.filter(f => f.trialStatus === "approved"));
+  const allTrialFines = $derived(fines.filter(f => f.trialStatus));
+
+  function adminTrialBadgeInfo(fine: FineReport): { label: string; classes: string } {
+    if (fine.trialStatus === "requested") return { label: "Requested", classes: "bg-amber-100 text-amber-800 border-amber-200" };
+    if (fine.trialStatus === "approved") return { label: "Approved — pending Fine Party", classes: "bg-[var(--ntnui-green)]/15 text-[var(--ntnui-green)] border-[var(--ntnui-green)]/30" };
+    if (fine.trialStatus === "rejected") return { label: "Rejected", classes: "bg-[var(--ntnui-red)]/10 text-[var(--ntnui-red)] border-[var(--ntnui-red)]/25" };
+    if (fine.trialStatus === "resolved") {
+      if (fine.trialOutcome === "acquitted") return { label: "Resolved — Acquitted", classes: "bg-[var(--ntnui-green)]/15 text-[var(--ntnui-green)] border-[var(--ntnui-green)]/30" };
+      if (fine.trialOutcome === "guilty") return { label: "Resolved — Guilty", classes: "bg-[var(--ntnui-red)]/10 text-[var(--ntnui-red)] border-[var(--ntnui-red)]/25" };
+      if (fine.trialOutcome === "transferred") return { label: "Resolved — Transferred", classes: "bg-[var(--ntnui-yellow)]/20 text-[var(--ntnui-black-dark)] border-[var(--ntnui-yellow)]/40" };
+    }
+    return { label: "Unknown", classes: "bg-[var(--color-text)]/10 text-[var(--color-text)] border-[var(--color-text)]/20" };
+  }
   const pendingTotalCount = $derived(pendingFines.length + pendingDugnad.length);
 
   // Helper to get minimum rate for sorting
@@ -460,6 +482,64 @@
   }
 
   // --- Handlers ---
+
+  // Resolve Trial Modal
+  let resolveTrialFineId = $state<string | null>(null);
+  let resolveTrialOutcome = $state<TrialOutcome>("acquitted");
+  let resolveTrialTransferToId = $state("");
+  let isResolvingTrial = $state(false);
+
+  function openResolveTrialModal(fineId: string) {
+    resolveTrialFineId = fineId;
+    resolveTrialOutcome = "acquitted";
+    resolveTrialTransferToId = "";
+  }
+
+  async function submitResolveTrial(e: SubmitEvent) {
+    e.preventDefault();
+    if (!resolveTrialFineId) return;
+    if (resolveTrialOutcome === "transferred" && !resolveTrialTransferToId) return;
+
+    isResolvingTrial = true;
+    try {
+      await onResolveTrial(
+        resolveTrialFineId,
+        resolveTrialOutcome,
+        resolveTrialOutcome === "transferred" ? resolveTrialTransferToId : undefined
+      );
+      notify("Trial resolved.");
+      resolveTrialFineId = null;
+    } catch (err: any) {
+      console.error("[AdminDashboard] Error resolving trial:", err);
+      notify("Could not resolve trial: " + (err?.message || "Unknown error"), "error");
+    } finally {
+      isResolvingTrial = false;
+    }
+  }
+
+  async function handleDecideTrialRequest(fineId: string, approve: boolean, playerName: string) {
+    try {
+      await onDecideTrialRequest(fineId, approve);
+      notify(approve ? `Trial approved for ${playerName}.` : `Trial request rejected for ${playerName}.`);
+    } catch (err: any) {
+      console.error("[AdminDashboard] Error deciding trial request:", err);
+      notify("Could not update trial request: " + (err?.message || "Unknown error"), "error");
+    }
+  }
+
+  async function handleClearTrial(fineId: string, playerName: string) {
+    if (!confirm(`Clear the trial on this fine for ${playerName}? This does not change the fine amount — it just removes the trial status so a new trial can be requested.`)) {
+      return;
+    }
+    try {
+      await onClearTrial(fineId);
+      notify(`Trial cleared for ${playerName}.`);
+    } catch (err: any) {
+      console.error("[AdminDashboard] Error clearing trial:", err);
+      notify("Could not clear trial: " + (err?.message || "Unknown error"), "error");
+    }
+  }
+
   function openEditFine(fine: FineReport) {
     editingFine = fine;
     editFinePlayerId = fine.playerId;
@@ -1188,6 +1268,183 @@
             {/if}
           </div>
         </div>
+
+        <!-- Trial Requests -->
+        <div class="bg-[var(--color-surface)] rounded-2xl shadow-xs shadow-xs border-1 border-[var(--color-border-strong)] overflow-hidden">
+          <div class="p-4 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex items-center justify-center">
+            <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
+              <span>Trial Requests ({pendingTrialRequests.length})</span>
+            </div>
+          </div>
+
+          <div class="divide-y divide-[var(--color-text)]/10">
+            {#if pendingTrialRequests.length === 0}
+              <div class="p-8 text-center text-[var(--color-text-muted)] text-xs sm:text-sm">
+                No pending trial requests.
+              </div>
+            {:else}
+              {#each pendingTrialRequests as fine}
+                {@const person = persons.find(p => p.id === fine.playerId)}
+                <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-[var(--color-text)]/5">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="font-bold text-[var(--color-text)] text-sm">
+                        {person ? getAdminFullName(person) : fine.playerName}
+                      </span>
+                      <span class="text-xs font-black text-[var(--ntnui-red)] bg-[var(--ntnui-red)]/10 px-2 py-0.5 rounded border border-[var(--ntnui-red)]/30">
+                        {fine.totalFine} kr
+                      </span>
+                    </div>
+
+                    <div class="text-xs text-[var(--color-text-muted)] mt-1 font-medium">
+                      {fine.ruleTitles.join(", ")}
+                    </div>
+
+                    {#if fine.trialRequestComment}
+                      <div class="text-xs text-[var(--color-text-muted)] italic mt-0.5">
+                        "{fine.trialRequestComment}"
+                      </div>
+                    {/if}
+
+                    <div class="text-[11px] text-[var(--color-text-muted)] mt-1">
+                      Requested by: {fine.trialRequestedByName || "Unknown"} • {fine.trialRequestedAt ? new Date(fine.trialRequestedAt).toLocaleDateString() : ""}
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onclick={() => handleDecideTrialRequest(fine.id, false, person ? getAdminFullName(person) : fine.playerName)}
+                      class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--ntnui-red)]/10 hover:bg-[var(--ntnui-red)]/15 text-[var(--ntnui-red)] flex items-center gap-1 cursor-pointer"
+                    >
+                      <XCircle class="w-3.5 h-3.5" />
+                      <span>Reject</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onclick={() => handleDecideTrialRequest(fine.id, true, person ? getAdminFullName(person) : fine.playerName)}
+                      class="px-4 py-1.5 text-xs font-bold rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <CheckCircle2 class="w-4 h-4" />
+                      <span>Approve</span>
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </div>
+
+        <!-- Approved Trials — Pending Fine Party -->
+        <div class="bg-[var(--color-surface)] rounded-2xl shadow-xs shadow-xs border-1 border-[var(--color-border-strong)] overflow-hidden">
+          <div class="p-4 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex items-center justify-center">
+            <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
+              <span>Approved Trials — Pending Fine Party ({approvedTrials.length})</span>
+            </div>
+          </div>
+
+          <div class="divide-y divide-[var(--color-text)]/10">
+            {#if approvedTrials.length === 0}
+              <div class="p-8 text-center text-[var(--color-text-muted)] text-xs sm:text-sm">
+                No trials awaiting a verdict.
+              </div>
+            {:else}
+              {#each approvedTrials as fine}
+                {@const person = persons.find(p => p.id === fine.playerId)}
+                <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-[var(--color-text)]/5">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="font-bold text-[var(--color-text)] text-sm">
+                        {person ? getAdminFullName(person) : fine.playerName}
+                      </span>
+                      <span class="text-xs font-black text-[var(--ntnui-red)] bg-[var(--ntnui-red)]/10 px-2 py-0.5 rounded border border-[var(--ntnui-red)]/30">
+                        {fine.totalFine} kr
+                      </span>
+                    </div>
+
+                    <div class="text-xs text-[var(--color-text-muted)] mt-1 font-medium">
+                      {fine.ruleTitles.join(", ")}
+                    </div>
+
+                    {#if fine.trialRequestComment}
+                      <div class="text-xs text-[var(--color-text-muted)] italic mt-0.5">
+                        "{fine.trialRequestComment}"
+                      </div>
+                    {/if}
+                  </div>
+
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onclick={() => openResolveTrialModal(fine.id)}
+                      class="px-4 py-1.5 text-xs font-bold rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <span>Resolve</span>
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </div>
+
+        <!-- Trial History (all statuses, with a way to clear/reset) -->
+        <div class="bg-[var(--color-surface)] rounded-2xl shadow-xs shadow-xs border-1 border-[var(--color-border-strong)] overflow-hidden">
+          <div class="p-4 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex items-center justify-center">
+            <div class="font-bold text-xs sm:text-sm flex items-center gap-2">
+              <span>Trial History ({allTrialFines.length})</span>
+            </div>
+          </div>
+
+          <div class="divide-y divide-[var(--color-text)]/10">
+            {#if allTrialFines.length === 0}
+              <div class="p-8 text-center text-[var(--color-text-muted)] text-xs sm:text-sm">
+                No fines have ever had a trial.
+              </div>
+            {:else}
+              {#each allTrialFines as fine}
+                {@const person = persons.find(p => p.id === fine.playerId)}
+                {@const badge = adminTrialBadgeInfo(fine)}
+                <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-[var(--color-text)]/5">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="font-bold text-[var(--color-text)] text-sm">
+                        {person ? getAdminFullName(person) : fine.playerName}
+                      </span>
+                      <span class="text-xs font-black text-[var(--ntnui-red)] bg-[var(--ntnui-red)]/10 px-2 py-0.5 rounded border border-[var(--ntnui-red)]/30">
+                        {fine.totalFine} kr
+                      </span>
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border {badge.classes}">
+                        {badge.label}
+                      </span>
+                    </div>
+
+                    <div class="text-xs text-[var(--color-text-muted)] mt-1 font-medium">
+                      {fine.ruleTitles.join(", ")}
+                    </div>
+
+                    {#if fine.trialRequestComment}
+                      <div class="text-xs text-[var(--color-text-muted)] italic mt-0.5">
+                        "{fine.trialRequestComment}"
+                      </div>
+                    {/if}
+                  </div>
+
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onclick={() => handleClearTrial(fine.id, person ? getAdminFullName(person) : fine.playerName)}
+                      class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 text-[var(--color-text)] flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Clear Trial</span>
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </div>
       </div>
 
     <!-- TAB 2: ROSTER & OVERVIEW -->
@@ -1255,9 +1512,9 @@
                   id="adm-person-type"
                   bind:value={newPersonType}
                   class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
-                >
-                  <option value="player">Player</option>
-                  <option value="coach">Coach</option>
+                 style="background-color: var(--color-surface); color: var(--color-text);">
+                  <option value="player" style="background-color: var(--color-surface); color: var(--color-text);">Player</option>
+                  <option value="coach" style="background-color: var(--color-surface); color: var(--color-text);">Coach</option>
                 </select>
               </div>
 
@@ -1748,9 +2005,9 @@
                     id="new-act-type"
                     bind:value={newDugnadActPointsType}
                     class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
-                  >
-                    <option value="perHour">Per hour</option>
-                    <option value="fixed">Fixed</option>
+                   style="background-color: var(--color-surface); color: var(--color-text);">
+                    <option value="perHour" style="background-color: var(--color-surface); color: var(--color-text);">Per hour</option>
+                    <option value="fixed" style="background-color: var(--color-surface); color: var(--color-text);">Fixed</option>
                   </select>
                 </div>
 
@@ -2610,9 +2867,9 @@
                 id="edit-fine-player"
                 bind:value={editFinePlayerId}
                 class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold"
-              >
+               style="background-color: var(--color-surface); color: var(--color-text);">
                 {#each persons as p}
-                  <option value={p.id}>{getAdminFullName(p)} ({p.type})</option>
+                  <option value={p.id} style="background-color: var(--color-surface); color: var(--color-text);">{getAdminFullName(p)} ({p.type})</option>
                 {/each}
               </select>
             </div>
@@ -2636,11 +2893,11 @@
                   id="edit-fine-ctx"
                   bind:value={editFineEventContext}
                   class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium"
-                >
-                  <option value="Practice">Practice</option>
-                  <option value="Match">Match</option>
-                  <option value="Social">Social</option>
-                  <option value="Other">Other</option>
+                 style="background-color: var(--color-surface); color: var(--color-text);">
+                  <option value="Practice" style="background-color: var(--color-surface); color: var(--color-text);">Practice</option>
+                  <option value="Match" style="background-color: var(--color-surface); color: var(--color-text);">Match</option>
+                  <option value="Social" style="background-color: var(--color-surface); color: var(--color-text);">Social</option>
+                  <option value="Other" style="background-color: var(--color-surface); color: var(--color-text);">Other</option>
                 </select>
               </div>
             </div>
@@ -2652,10 +2909,10 @@
                   id="edit-fine-status"
                   bind:value={editFineStatus}
                   class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium"
-                >
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
+                 style="background-color: var(--color-surface); color: var(--color-text);">
+                  <option value="approved" style="background-color: var(--color-surface); color: var(--color-text);">Approved</option>
+                  <option value="pending" style="background-color: var(--color-surface); color: var(--color-text);">Pending</option>
+                  <option value="rejected" style="background-color: var(--color-surface); color: var(--color-text);">Rejected</option>
                 </select>
               </div>
             </div>
@@ -2718,9 +2975,9 @@
                 id="edit-dug-player"
                 bind:value={editDugnadPlayerId}
                 class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold"
-              >
+               style="background-color: var(--color-surface); color: var(--color-text);">
                 {#each persons.filter(p => p.type === 'player') as p}
-                  <option value={p.id}>{getAdminFullName(p)}</option>
+                  <option value={p.id} style="background-color: var(--color-surface); color: var(--color-text);">{getAdminFullName(p)}</option>
                 {/each}
               </select>
             </div>
@@ -2744,10 +3001,10 @@
                   id="edit-dug-status"
                   bind:value={editDugnadStatus}
                   class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium"
-                >
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
+                 style="background-color: var(--color-surface); color: var(--color-text);">
+                  <option value="approved" style="background-color: var(--color-surface); color: var(--color-text);">Approved</option>
+                  <option value="pending" style="background-color: var(--color-surface); color: var(--color-text);">Pending</option>
+                  <option value="rejected" style="background-color: var(--color-surface); color: var(--color-text);">Rejected</option>
                 </select>
               </div>
             </div>
@@ -2843,9 +3100,9 @@
                   id="edit-p-type"
                   bind:value={editPersonType}
                   class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium"
-                >
-                  <option value="player">Player</option>
-                  <option value="coach">Coach</option>
+                 style="background-color: var(--color-surface); color: var(--color-text);">
+                  <option value="player" style="background-color: var(--color-surface); color: var(--color-text);">Player</option>
+                  <option value="coach" style="background-color: var(--color-surface); color: var(--color-text);">Coach</option>
                 </select>
               </div>
               <div>
@@ -3135,9 +3392,9 @@
                   id="edit-act-type"
                   bind:value={editDugnadActPointsType}
                   class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold"
-                >
-                  <option value="perHour">Per hour</option>
-                  <option value="fixed">Fixed</option>
+                 style="background-color: var(--color-surface); color: var(--color-text);">
+                  <option value="perHour" style="background-color: var(--color-surface); color: var(--color-text);">Per hour</option>
+                  <option value="fixed" style="background-color: var(--color-surface); color: var(--color-text);">Fixed</option>
                 </select>
               </div>
 
@@ -3270,6 +3527,92 @@
               Save Role
             </button>
           </div>
+        </div>
+      </div>
+    {/if}
+
+    {#if resolveTrialFineId}
+      {@const fineBeingResolved = fines.find(f => f.id === resolveTrialFineId)}
+      <div class="fixed inset-0 z-50 bg-[var(--ntnui-black-dark)]/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-[var(--color-surface)] rounded-2xl shadow-xl max-w-md w-full p-6 border border-[var(--color-text)]/15">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold text-base text-[var(--color-text)]">
+              Resolve Trial
+            </h4>
+            <button type="button" onclick={() => resolveTrialFineId = null} class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          {#if fineBeingResolved}
+            <p class="text-xs text-[var(--color-text-muted)] mt-1 mb-4">
+              {fineBeingResolved.playerName} • {fineBeingResolved.totalFine} kr • {fineBeingResolved.ruleTitles.join(", ")}
+            </p>
+          {/if}
+
+          <form onsubmit={submitResolveTrial} class="space-y-3 text-xs sm:text-sm">
+            <div>
+              <span class="block text-xs font-bold text-[var(--color-text)] mb-1">Verdict *</span>
+              <div class="space-y-1.5">
+                <label class="flex items-center gap-2.5 p-2.5 bg-[var(--color-text)]/5 rounded-lg border border-[var(--color-text)]/15 cursor-pointer">
+                  <input type="radio" name="trial-outcome" value="acquitted" bind:group={resolveTrialOutcome} class="w-4 h-4 text-[var(--ntnui-green)] focus:ring-[var(--ntnui-green)]" />
+                  <span class="flex-1">
+                    <span class="block font-semibold text-[var(--color-text)]">Acquitted</span>
+                    <span class="block text-[11px] text-[var(--color-text-muted)]">Fine no longer counts toward the total.</span>
+                  </span>
+                </label>
+                <label class="flex items-center gap-2.5 p-2.5 bg-[var(--color-text)]/5 rounded-lg border border-[var(--color-text)]/15 cursor-pointer">
+                  <input type="radio" name="trial-outcome" value="guilty" bind:group={resolveTrialOutcome} class="w-4 h-4 text-[var(--ntnui-green)] focus:ring-[var(--ntnui-green)]" />
+                  <span class="flex-1">
+                    <span class="block font-semibold text-[var(--color-text)]">Guilty</span>
+                    <span class="block text-[11px] text-[var(--color-text-muted)]">Fine is doubled.</span>
+                  </span>
+                </label>
+                <label class="flex items-center gap-2.5 p-2.5 bg-[var(--color-text)]/5 rounded-lg border border-[var(--color-text)]/15 cursor-pointer">
+                  <input type="radio" name="trial-outcome" value="transferred" bind:group={resolveTrialOutcome} class="w-4 h-4 text-[var(--ntnui-green)] focus:ring-[var(--ntnui-green)]" />
+                  <span class="flex-1">
+                    <span class="block font-semibold text-[var(--color-text)]">Transferred</span>
+                    <span class="block text-[11px] text-[var(--color-text-muted)]">Fine is reassigned to another person.</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {#if resolveTrialOutcome === "transferred"}
+              <div>
+                <label for="trial-transfer-to" class="block text-xs font-bold text-[var(--color-text)] mb-1">Transfer fine to *</label>
+                <select
+                  id="trial-transfer-to"
+                  bind:value={resolveTrialTransferToId}
+                  required
+                  style="background-color: var(--color-surface); color: var(--color-text);"
+                  class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
+                >
+                  <option value="" disabled style="background-color: var(--color-surface); color: var(--color-text);">Select person...</option>
+                  {#each sortedPersons as p}
+                    <option value={p.id} style="background-color: var(--color-surface); color: var(--color-text);">{getAdminFullName(p)} ({p.type})</option>
+                  {/each}
+                </select>
+              </div>
+            {/if}
+
+            <div class="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onclick={() => resolveTrialFineId = null}
+                class="px-3 py-1.5 rounded-lg border border-[var(--color-text)]/30 bg-[var(--color-surface)] text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-text)]/5 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isResolvingTrial || (resolveTrialOutcome === "transferred" && !resolveTrialTransferToId)}
+                class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer"
+              >
+                {isResolvingTrial ? "Resolving..." : "Confirm Verdict"}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     {/if}

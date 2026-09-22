@@ -1,19 +1,33 @@
 <script lang="ts">
-  import { ShieldAlert, HeartHandshake, Calendar, User, Clock, CheckCircle2, AlertCircle, Filter } from "lucide-svelte";
-  import type { FineReport, DugnadEntry, Person } from "$lib/types";
+  import { ShieldAlert, HeartHandshake, Calendar, User, Clock, CheckCircle2, AlertCircle, Filter, X } from "lucide-svelte";
+  import type { FineReport, DugnadEntry, Person, TrialStatus, TrialOutcome } from "$lib/types";
   import { getPublicDisplayName } from "$lib/utils/nameHelper";
 
   let {
     fines = [],
     dugnad = [],
-    persons = []
+    persons = [],
+    onRequestTrial
   }: {
     fines: FineReport[];
     dugnad: DugnadEntry[];
     persons: Person[];
+    onRequestTrial: (fineId: string, requestedByPersonId: string, comment?: string) => Promise<void> | void;
   } = $props();
 
   let filterType = $state<"all" | "fines" | "dugnad" | "pending">("all");
+
+  // Coaches first, then alphabetically by first name, then last name
+  const sortedPersonsForTrial = $derived(
+    [...persons].sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === "coach" ? -1 : 1;
+      }
+      const firstNameCompare = a.firstName.localeCompare(b.firstName);
+      if (firstNameCompare !== 0) return firstNameCompare;
+      return a.lastName.localeCompare(b.lastName);
+    })
+  );
 
   function getPersonDisplayNameById(id: string, fallbackName: string): string {
     const found = persons.find(p => p.id === id);
@@ -35,6 +49,11 @@
       date: string;
       status: "approved" | "pending" | "rejected";
       reportedBy?: string;
+      trialStatus?: TrialStatus;
+      trialOutcome?: TrialOutcome;
+      trialOriginalFine?: number;
+      trialOriginalPlayerName?: string;
+      trialRequestedByName?: string;
     }> = [];
 
     fines.forEach(f => {
@@ -47,7 +66,12 @@
         value: `${f.totalFine} kr`,
         date: f.date,
         status: f.status || "approved",
-        reportedBy: f.reportedBy
+        reportedBy: f.reportedBy,
+        trialStatus: f.trialStatus,
+        trialOutcome: f.trialOutcome,
+        trialOriginalFine: f.trialOriginalFine,
+        trialOriginalPlayerName: f.trialOriginalPlayerName,
+        trialRequestedByName: f.trialRequestedByName
       });
     });
 
@@ -82,6 +106,81 @@
     } catch (e) {
       return iso;
     }
+  }
+
+  // --- Request Trial Modal ---
+  const ABSURD_EXCUSES = [
+    '"The clock on the wall was clearly running fast, Your Honor."',
+    '"That wasn\'t me — that was my evil twin."',
+    '"I was acting in the best interest of team morale."',
+    '"The ball moved on its own. I have witnesses."',
+    '"I plead the fifth."',
+    '"Objection: hearsay."',
+    '"I have a signed alibi from my cat."',
+    '"The floor was slippery. Sue the gym, not me."',
+    '"This is a miscarriage of justice."',
+    '"I demand a trial by jury of my teammates."',
+    '"Someone else was wearing my jersey that day."',
+    '"The evidence was clearly planted."',
+    '"I was merely testing the team\'s reflexes."',
+    '"My alarm clock was set to the wrong time zone."',
+    '"Technically, the rules don\'t explicitly forbid it."',
+    '"I refuse to answer on the grounds it may incriminate me."',
+    '"I was under the influence of pre-game nerves."',
+    '"The referee clearly has it out for me."',
+    '"I have an airtight alibi. I just can\'t share it right now."',
+    '"It\'s not a crime if nobody filmed it."'
+  ];
+
+  function pickRandomExcuse(): string {
+    return ABSURD_EXCUSES[Math.floor(Math.random() * ABSURD_EXCUSES.length)];
+  }
+
+  let trialRequestFineId = $state<string | null>(null);
+  let trialRequestPersonId = $state("");
+  let trialRequestComment = $state("");
+  let trialRequestPlaceholder = $state("");
+  let isSubmittingTrialRequest = $state(false);
+
+  function openTrialRequestModal(fineId: string) {
+    trialRequestFineId = fineId;
+    trialRequestPersonId = "";
+    trialRequestComment = "";
+    trialRequestPlaceholder = pickRandomExcuse();
+  }
+
+  async function submitTrialRequest(e: SubmitEvent) {
+    e.preventDefault();
+    if (!trialRequestFineId || !trialRequestPersonId) return;
+
+    isSubmittingTrialRequest = true;
+    try {
+      await onRequestTrial(trialRequestFineId, trialRequestPersonId, trialRequestComment.trim() || undefined);
+      trialRequestFineId = null;
+    } catch (err) {
+      console.error("[ActivityHistory] Error requesting trial:", err);
+    } finally {
+      isSubmittingTrialRequest = false;
+    }
+  }
+
+  function trialBadgeInfo(status: TrialStatus | undefined, outcome: TrialOutcome | undefined): { label: string; classes: string } | null {
+    if (!status) return null;
+    if (status === "requested") {
+      return { label: "Trial Requested", classes: "bg-amber-100 text-amber-800 border-amber-200" };
+    }
+    if (status === "approved") {
+      return { label: "Trial Approved — pending Fine Party", classes: "bg-[var(--ntnui-green)]/15 text-[var(--ntnui-green)] border-[var(--ntnui-green)]/30" };
+    }
+    if (status === "rejected") {
+      return { label: "Trial Rejected", classes: "bg-[var(--ntnui-red)]/10 text-[var(--ntnui-red)] border-[var(--ntnui-red)]/25" };
+    }
+    if (status === "resolved") {
+      if (outcome === "acquitted") return { label: "Acquitted", classes: "bg-[var(--ntnui-green)]/15 text-[var(--ntnui-green)] border-[var(--ntnui-green)]/30" };
+      if (outcome === "guilty") return { label: "Guilty — fine doubled", classes: "bg-[var(--ntnui-red)]/10 text-[var(--ntnui-red)] border-[var(--ntnui-red)]/25" };
+      if (outcome === "transferred") return { label: "Transferred", classes: "bg-[var(--ntnui-yellow)]/20 text-[var(--ntnui-black-dark)] border-[var(--ntnui-yellow)]/40" };
+    }
+    return null;
   }
 </script>
 
@@ -138,7 +237,7 @@
       </div>
     {:else}
       {#each combinedHistory() as entry}
-        <div class="p-3 sm:pl-5 sm:pr-6 flex items-center justify-between hover:bg-[var(--color-text)]/5 transition-colors">
+        <div class="p-3 sm:pl-5 sm:pr-6 flex items-center justify-between hover:bg-[var(--color-text)]/5 transition-colors gap-3">
           <div class="flex items-center gap-5 min-w-0">
             <!-- Kind Icon -->
             <div
@@ -163,6 +262,15 @@
                     Pending Approval
                   </span>
                 {/if}
+
+                {#if entry.kind === "fine"}
+                  {@const badge = trialBadgeInfo(entry.trialStatus, entry.trialOutcome)}
+                  {#if badge}
+                    <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border {badge.classes}">
+                      {badge.label}
+                    </span>
+                  {/if}
+                {/if}
               </div>
 
               <div class="text-xs text-[var(--color-text-subtle)] font-medium mt-0.5 line-clamp-2">
@@ -177,21 +285,104 @@
                 {#if entry.subtitle}
                   <span class="truncate max-w-xs">• {entry.subtitle}</span>
                 {/if}
+                {#if entry.trialStatus === "resolved" && entry.trialOutcome === "guilty" && entry.trialOriginalFine !== undefined}
+                  <span>• Original: {entry.trialOriginalFine} kr</span>
+                {/if}
+                {#if entry.trialStatus === "resolved" && entry.trialOutcome === "transferred" && entry.trialOriginalPlayerName}
+                  <span>• Originally: {entry.trialOriginalPlayerName}</span>
+                {/if}
               </div>
             </div>
           </div>
 
-          <!-- Value Badge -->
-          <div class="shrink-0 self-center text-center min-w-[52px]">
-            <div class="font-black text-xs sm:text-sm {entry.kind === 'fine' ? 'text-[var(--color-text)]' : 'text-[var(--ntnui-green)]'}">
-              {entry.value}
+          <div class="shrink-0 flex flex-col items-end gap-1.5">
+            <!-- Value Badge -->
+            <div class="text-center min-w-[52px]">
+              <div class="font-black text-xs sm:text-sm {entry.kind === 'fine' ? 'text-[var(--color-text)]' : 'text-[var(--ntnui-green)]'}">
+                {entry.value}
+              </div>
+              <div class="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">
+                {entry.kind === 'fine' ? 'penalty' : 'reward'}
+              </div>
             </div>
-            <div class="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">
-              {entry.kind === 'fine' ? 'penalty' : 'reward'}
-            </div>
+
+            {#if entry.kind === "fine" && entry.status === "approved" && !entry.trialStatus}
+              <button
+                type="button"
+                onclick={() => openTrialRequestModal(entry.id)}
+                class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border border-[var(--color-text)]/25 text-[var(--color-text)] hover:bg-[var(--color-text)]/5 cursor-pointer whitespace-nowrap"
+              >
+                Request Trial
+              </button>
+            {/if}
           </div>
         </div>
       {/each}
     {/if}
   </div>
 </div>
+
+{#if trialRequestFineId}
+  <div class="fixed inset-0 z-50 bg-[var(--ntnui-black-dark)]/70 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-[var(--color-surface)] rounded-2xl shadow-xl max-w-md w-full p-6 border border-[var(--color-text)]/15">
+      <div class="flex items-center justify-between">
+        <h4 class="font-bold text-base text-[var(--color-text)] flex items-center gap-2">
+          Request Trial
+        </h4>
+        <button type="button" onclick={() => trialRequestFineId = null} class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer">
+          <X class="w-5 h-5" />
+        </button>
+      </div>
+
+      <p class="text-xs text-[var(--color-text-muted)] mt-1 mb-4">
+        The request must be approved by admin, and is finally decided at the next Fine Party.
+      </p>
+
+      <form onsubmit={submitTrialRequest} class="space-y-3 text-xs sm:text-sm">
+        <div>
+          <label for="trial-req-person" class="block text-xs font-bold text-[var(--color-text)] mb-1">Who is requesting trial? *</label>
+          <select
+            id="trial-req-person"
+            bind:value={trialRequestPersonId}
+            required
+            style="background-color: var(--color-surface); color: var(--color-text);"
+            class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
+          >
+            <option value="" disabled style="background-color: var(--color-surface); color: var(--color-text);">Select yourself...</option>
+            {#each sortedPersonsForTrial as p}
+              <option value={p.id} style="background-color: var(--color-surface); color: var(--color-text);">{getPublicDisplayName(p, persons)} ({p.type})</option>
+            {/each}
+          </select>
+        </div>
+
+        <div>
+          <label for="trial-req-comment" class="block text-xs font-bold text-[var(--color-text)] mb-1">Grounds for appeal (optional)</label>
+          <textarea
+            id="trial-req-comment"
+            bind:value={trialRequestComment}
+            rows="3"
+            placeholder={trialRequestPlaceholder}
+            class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] resize-none focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
+          ></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onclick={() => trialRequestFineId = null}
+            class="px-3 py-1.5 rounded-lg border border-[var(--color-text)]/30 bg-[var(--color-surface)] text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-text)]/5 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!trialRequestPersonId || isSubmittingTrialRequest}
+            class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer"
+          >
+            {isSubmittingTrialRequest ? "Submitting..." : "Submit Request"}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
