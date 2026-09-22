@@ -445,7 +445,7 @@
               step="0.5"
               placeholder="e.g. 10"
               bind:value={customAmount}
-              class="w-full px-3 py-2 text-xs sm:text-sm bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-xl focus:bg-[var(--color-surface)] focus:outline-none focus:border-1 focus:border-[var(--ntnui-green)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/70"
+              class="w-full px-3 py-2 text-xs sm:text-sm bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-xl focus:bg-[var(--color-surface)] focus:outline-none focus:border-1 focus:border-[var(--ntnui-green)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/70 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
         {/if}

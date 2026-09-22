@@ -1,5 +1,5 @@
 <script lang="ts">
-  import {
+    import {
     Settings,
     CheckCircle2,
     XCircle,
