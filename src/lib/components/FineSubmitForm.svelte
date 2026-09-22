@@ -239,18 +239,18 @@
           class="w-full h-11 px-3.5 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 focus:bg-[var(--color-surface)] focus:outline-none focus:border-1 focus:border-[var(--ntnui-green)] rounded-xl text-[var(--color-text)] font-medium text-xs sm:text-sm transition-all appearance-none cursor-pointer pr-10 shadow-2xs"
         >
           <option value="" disabled selected>-- Select player or coach --</option>
-          <optgroup label="Players (Alphabetical)">
+          <optgroup label="Players">
             {#each players as p}
               <option value={p.id}>
-                {getPublicDisplayName(p, persons)} {p.number ? `(#${p.number})` : ""} - {p.role || "Player"}
+                {getPublicDisplayName(p, persons)} {p.number ? `(#${p.number})` : ""} - {p.position || "Potato"}
               </option>
             {/each}
           </optgroup>
           {#if coaches.length > 0}
-            <optgroup label="Coaches & Staff">
+            <optgroup label="Coaches">
               {#each coaches as c}
                 <option value={c.id}>
-                  {getPublicDisplayName(c, persons)} - {c.role || "Coach"}
+                  {getPublicDisplayName(c, persons)} - {c.position || "Coach"}
                 </option>
               {/each}
             </optgroup>
@@ -442,7 +442,7 @@
               id="custom-amount"
               type="number"
               min="0"
-              step="1"
+              step="0.5"
               placeholder="e.g. 10"
               bind:value={customAmount}
               class="w-full px-3 py-2 text-xs sm:text-sm bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-xl focus:bg-[var(--color-surface)] focus:outline-none focus:border-1 focus:border-[var(--ntnui-green)] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/70"

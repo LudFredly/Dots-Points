@@ -23,7 +23,7 @@ This folder contains the authoritative offline backup and portable schema for th
 For every player:
 - `firstName`: String
 - `lastName`: String
-- `role`: String (e.g., "Outside Hitter", "Setter", "Middle Blocker", "Opposite", "Libero")
+- `position`: String (e.g., "Outside Hitter", "Setter", "Middle Blocker", "Opposite", "Libero")
 - `number`: Number (jersey number)
 - `totalFineSum`: Number (total fines in NOK)
 - `totalDugnadHours`: Number (total duty hours)

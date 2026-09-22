@@ -49,7 +49,7 @@
       return;
     }
 
-    const maxOffset = Math.max(0, (navContent?.offsetHeight ?? 0) - 5);
+    const maxOffset = Math.max(0, (navContent?.offsetHeight ?? 0) - 4);
 
     navOffset = Math.min(window.scrollY, maxOffset);
   }

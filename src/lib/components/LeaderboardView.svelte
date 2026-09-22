@@ -116,27 +116,41 @@
     {:else}
       <!-- PUBLISHED STATE -->
       <div class="space-y-6">
-        <!-- Top 3 Podium for Fines -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <!-- Penalty Podium -->
+        <div class="flex items-end justify-center gap-3">
           {#each fineStats().slice(0, 3) as item, index}
             {@const rankColors = [
-              "border-[var(--medal-gold-border)] bg-gradient-to-r from-[var(--medal-gold-from)] via-[var(--medal-gold-via)] to-[var(--medal-gold-to)] text-[var(--medal-gold-text)]",
-              "border-[var(--medal-silver-border)] bg-gradient-to-r from-[var(--medal-silver-from)] via-[var(--medal-silver-via)] to-[var(--medal-silver-to)] text-[var(--medal-silver-text)]",
-              "border-[var(--medal-bronze-border)] bg-gradient-to-r from-[var(--medal-bronze-from)] via-[var(--medal-bronze-via)] to-[var(--medal-bronze-to)] text-[var(--medal-bronze-text)]"
+              "border-yellow-500 dark:border-yellow-400 bg-amber-300 dark:bg-yellow-600 text-[var(--ntnui-black-dark)] dark:text-[var(--color-text)]/90",
+              "border-slate-400 dark:border-slate-300 bg-slate-300 dark:bg-slate-500 text-[var(--ntnui-black-dark)] dark:text-[var(--color-text)]/90",
+              "border-[#a05235] dark:border-[#c98268] bg-[#d99a83] dark:bg-[#8f452c] text-[var(--ntnui-black-dark)] dark:text-[var(--color-text)]/90"
             ]}
+            {@const rankOrder = ["order-2", "order-1", "order-3"]}
+            {@const rankHeight = ["min-h-[190px]", "min-h-[170px]", "min-h-[150px]"]}
             {@const rankTitles = ["🥇", "🥈", "🥉"]}
-            <div class="rounded-2xl border p-2 pb-4 text-center shadow-xs {rankColors[index]}">
-              <div class="text-[20px] tracking-wider mb-0">
-                {rankTitles[index]}
-              </div>
-              <div class="text-base sm:text-lg font-black tracking-tight">
-                {item.displayName}
-              </div>
-              <div class="text-sm opacity-80 mb-3">
-                {item.person.role || "Player"} {item.person.number ? `(#${item.person.number})` : ""}
-              </div>
-              <div class="text-xl sm:text-2xl font-black">
-                {item.totalAmount} kr
+            {@const rankEmojiSize = ["text-[28px]", "text-[24px]", "text-[22px]"]}
+            {@const rankNameSize = ["text-[26px]", "text-[22px]", "text-[18px]"]}
+            {@const positionSize = ["text-[20px]", "text-[16px]", "text-[13px]"]}
+            {@const rankAmountSize = ["text-[26px]", "text-[22px]", "text-[20px]"]}
+
+            <div class="relative overflow-hidden flex-1 max-w-[33%] rounded-2xl border p-2 pb-4 text-center shadow-xs flex flex-col justify-center {rankColors[index]} {rankOrder[index]} {rankHeight[index]}">
+              <div class="absolute inset-0 bg-gradient-to-b from-white/50 via-transparent to-black/10 dark:from-white/10 dark:via-transparent dark:to-black/30 pointer-events-none"></div>
+
+              <div class="relative z-10">
+                <div class="tracking-wider mb-0 {rankEmojiSize[index]}">
+                  {rankTitles[index]}
+                </div>
+
+                <div class="font-black tracking-tight {rankNameSize[index]}">
+                  {item.displayName}
+                </div>
+
+                <div class="text-[var(--ntnui-black-dark)] dark:text-current/80 mb-3 {positionSize[index]}">
+                  {item.person.position || "Player"} {item.person.number ? `(#${item.person.number})` : ""}
+                </div>
+
+                <div class="font-black text-[var(--ntnui-black-dark)] dark:text-current {rankAmountSize[index]}">
+                  {item.totalAmount} kr
+                </div>
               </div>
             </div>
           {/each}
@@ -171,7 +185,7 @@
                     </div>
 
                     <div class="text-[11px] text-[var(--color-text-muted)]">
-                      {item.person.role || "Player"} {item.person.number ? `• #${item.person.number}` : ""}
+                      {item.person.position || "Player"} {item.person.number ? `• #${item.person.number}` : ""}
                     </div>
                   </div>
                 </div>
@@ -197,30 +211,40 @@
   {:else}
     <div class="space-y-6">
       <!-- Duty Podium -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="flex items-end justify-center gap-3">
         {#each dugnadStats().slice(0, 3) as item, index}
-          {@const rankColors = [
-            "border-black-400 bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-50 text-[var(--ntnui-black-dark)]",
-            "border-black-400 bg-gradient-to-r from-[var(--ntnui-black)]/5 via-slate-200 to-[var(--ntnui-black)]/5 text-[var(--ntnui-black-dark)]",
-            "border-black-400 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 text-[var(--ntnui-black-dark)]"
-          ]}
+        {@const rankColors = [
+          "border-yellow-500 dark:border-yellow-400 bg-amber-300 dark:bg-yellow-600 text-[var(--ntnui-black-dark)] dark:text-[var(--color-text)]/90",
+          "border-slate-400 dark:border-slate-300 bg-slate-300 dark:bg-slate-500 text-[var(--ntnui-black-dark)] dark:text-[var(--color-text)]/90",
+          "border-[#a05235] dark:border-[#c98268] bg-[#d99a83] dark:bg-[#8f452c] text-[var(--ntnui-black-dark)] dark:text-[var(--color-text)]/90"
+        ]}
+          {@const rankOrder = ["order-2", "order-1", "order-3"]}
+          {@const rankHeight = ["min-h-[190px]", "min-h-[170px]", "min-h-[150px]"]}
           {@const rankTitles = ["🥇", "🥈", "🥉"]}
+          {@const rankEmojiSize = ["text-[28px]", "text-[24px]", "text-[22px]"]}
+          {@const rankNameSize = ["text-[26px]", "text-[22px]", "text-[18px]"]}
+          {@const positionSize = ["text-[20px]", "text-[16px]", "text-[13px]"]}
+          {@const rankPointsSize = ["text-[26px]", "text-[22px]", "text-[20px]"]}
 
-          <div class="rounded-2xl border p-2 pb-4 text-center shadow-xs {rankColors[index]}">
-            <div class="text-[20px] tracking-wider mb-0">
-              {rankTitles[index]}
-            </div>
+          <div class="relative overflow-hidden flex-1 max-w-[33%] rounded-2xl border p-2 pb-4 text-center shadow-xs flex flex-col justify-center {rankColors[index]} {rankOrder[index]} {rankHeight[index]}">
+            <div class="absolute inset-0 bg-gradient-to-b from-white/50 via-transparent to-black/10 dark:from-white/10 dark:via-transparent dark:to-black/30 pointer-events-none"></div>
 
-            <div class="text-base sm:text-lg font-black tracking-tight">
-              {item.displayName}
-            </div>
+            <div class="relative z-10">
+              <div class="tracking-wider mb-0 {rankEmojiSize[index]}">
+                {rankTitles[index]}
+              </div>
 
-            <div class="text-sm text-[var(--ntnui-black-dark)] mb-3">
-              {item.player.role || "Player"} {item.player.number ? `(#${item.player.number})` : ""}
-            </div>
+              <div class="font-black tracking-tight {rankNameSize[index]}">
+                {item.displayName}
+              </div>
 
-            <div class="text-xl sm:text-2xl font-black text-[var(--ntnui-black-dark)]">
-              {item.totalPoints} pts
+              <div class="text-[var(--ntnui-black-dark)] dark:text-current/80 mb-3 {positionSize[index]}">
+                {item.player.position || "Player"} {item.player.number ? `(#${item.player.number})` : ""}
+              </div>
+
+              <div class="font-black text-[var(--ntnui-black-dark)] dark:text-current {rankPointsSize[index]}">
+                {item.totalPoints} pts
+              </div>
             </div>
           </div>
         {/each}
@@ -255,7 +279,7 @@
                   </div>
 
                   <div class="text-[11px] text-[var(--color-text-muted)]">
-                    {item.player.role || "Player"} {item.player.number ? `• #${item.player.number}` : ""}
+                    {item.player.position || "Player"} {item.player.number ? `• #${item.player.number}` : ""}
                   </div>
                 </div>
               </div>

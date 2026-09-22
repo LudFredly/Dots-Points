@@ -9,32 +9,17 @@
     UserPlus,
     Lock,
     Unlock,
-    ShieldAlert,
-    HeartHandshake,
-    Users,
-    Sliders,
-    BookOpen,
     AlertCircle,
-    Save,
     X,
-    Clock,
     RefreshCw,
-    Sparkles,
     Eye,
     LogOut,
     Navigation,
     Download,
     Upload,
-    Database,
-    FileDown,
     FileUp,
-    FileText,
     Check,
-    AlertTriangle,
-    CheckCircle,
-    ShieldCheck,
-    KeyRound,
-    Trophy
+    AlertTriangle
   } from "lucide-svelte";
   import type {
     Person,
@@ -42,12 +27,13 @@
     FineReport,
     DugnadEntry,
     DugnadActivity,
+    RoleDefinition,
     TeamSettings,
     TeamDataBackup,
     PlayerBackupData
   } from "$lib/types";
   import { getAdminFullName, getPublicDisplayName } from "$lib/utils/nameHelper";
-  import { h4aStore, DEFAULT_DUGNAD_ACTIVITIES } from "$lib/utils/store";
+  import { h4aStore, DEFAULT_DUGNAD_ACTIVITIES, DEFAULT_ROLE_DEFINITIONS } from "$lib/utils/store";
 
   let {
     persons = [],
@@ -55,6 +41,7 @@
     fines = [],
     dugnad = [],
     dugnadActivities = DEFAULT_DUGNAD_ACTIVITIES,
+    roleDefinitions = DEFAULT_ROLE_DEFINITIONS,
     settings,
     onApproveFine,
     onRejectFine,
@@ -72,6 +59,11 @@
     onAddDugnadActivity,
     onUpdateDugnadActivity,
     onDeleteDugnadActivity,
+    onAddRoleDefinition,
+    onUpdateRoleDefinition,
+    onDeleteRoleDefinition,
+    onAssignRole,
+    onRemoveRole,
     onUpdateSettings,
     onResetData,
     onExitAdmin
@@ -81,6 +73,7 @@
     fines: FineReport[];
     dugnad: DugnadEntry[];
     dugnadActivities?: DugnadActivity[];
+    roleDefinitions?: RoleDefinition[];
     settings: TeamSettings;
     onApproveFine: (id: string) => Promise<void>;
     onRejectFine: (id: string) => Promise<void>;
@@ -88,7 +81,7 @@
     onApproveDugnad: (id: string) => Promise<void>;
     onRejectDugnad: (id: string) => Promise<void>;
     onUpdateDugnad: (id: string, updates: Partial<DugnadEntry>) => Promise<void>;
-    onAddPerson: (firstName: string, lastName: string, role: string, type: "player" | "coach", number?: number) => Promise<void> | void;
+    onAddPerson: (firstName: string, lastName: string, position: string, type: "player" | "coach", number?: number) => Promise<void> | void;
     onUpdatePerson: (id: string, updates: Partial<Person>) => Promise<void> | void;
     onRemovePerson: (id: string) => Promise<void> | void;
     onAdjustPersonTotals?: (personId: string, fineSum?: number, dutyHours?: number) => Promise<void> | void;
@@ -98,6 +91,11 @@
     onAddDugnadActivity?: (activity: Omit<DugnadActivity, "id">) => void;
     onUpdateDugnadActivity?: (id: string, updates: Partial<DugnadActivity>) => void;
     onDeleteDugnadActivity?: (id: string) => void;
+    onAddRoleDefinition?: (roleDef: Omit<RoleDefinition, "id">) => void;
+    onUpdateRoleDefinition?: (id: string, updates: Partial<RoleDefinition>) => void;
+    onDeleteRoleDefinition?: (id: string) => void;
+    onAssignRole: (personId: string, roleId: string) => Promise<void> | void;
+    onRemoveRole: (personId: string, roleId: string) => Promise<void> | void;
     onUpdateSettings: (settings: Partial<TeamSettings>) => void;
     onResetData: () => void;
     onExitAdmin?: () => void;
@@ -130,10 +128,10 @@
     try {
       await h4aStore.loginWithAdminKey(adminKeyInput);
       adminKeyInput = "";
-      notify("Admin-konsollen er låst opp.");
+      notify("Admin-console unlocked");
     } catch (err: any) {
       console.error("Admin sign-in error:", err);
-      authError = err.message || "Kunne ikke låse opp som administrator.";
+      authError = err.message || "Could not unlock as administrator.";
     } finally {
       isLoggingIn = false;
     }
@@ -169,10 +167,10 @@
 
       const finesCount = data.players.reduce((sum, p) => sum + (p.fines?.length || 0), 0);
       const dugnadCount = data.players.reduce((sum, p) => sum + (p.dugnad?.length || 0), 0);
-      notify(`Eksporterte ${data.players.length} spillere, ${finesCount} bøter og ${dugnadCount} dugnadsposter.`);
+      notify(`Exported ${data.players.length} players, ${finesCount} fines and ${dugnadCount} dugnader.`);
     } catch (err: any) {
       console.error("Export error:", err);
-      notify(err.message || "Kunne ikke eksportere teamdata.", "error");
+      notify(err.message || "Could not export team data.", "error");
     } finally {
       isExporting = false;
     }
@@ -273,7 +271,7 @@
   const sortedRules = $derived(
     [...rules].sort((a, b) => getMinRate(a) - getMinRate(b) || a.title.localeCompare(b.title))
   );
-  // Sort roster: coaches first, then alphabetically by last name and first name
+  // Sort roster: coaches first, then alphabetically by first name and last name
   const sortedPersons = $derived(
     [...persons].sort((a, b) => {
       // Coaches first
@@ -281,14 +279,14 @@
         return a.type === "coach" ? -1 : 1;
       }
 
-      // Alphabetically by last name
-      const lastNameCompare = a.lastName.localeCompare(b.lastName);
-      if (lastNameCompare !== 0) {
-        return lastNameCompare;
+      // Alphabetically by first name
+      const firstNameCompare = a.firstName.localeCompare(b.firstName);
+      if (firstNameCompare !== 0) {
+        return firstNameCompare;
       }
 
-      // Then by first name
-      return a.firstName.localeCompare(b.firstName);
+      // Then by last name
+      return a.lastName.localeCompare(b.lastName);
     })
   );
 
@@ -305,21 +303,17 @@
     dugnad.filter(d => d.status === "approved").reduce((sum, d) => sum + (d.points || 0), 0)
   );
 
-  // Admin reversed Club Duty leaderboard
-  // Shows who has done the least dugnad / has greatest remaining duty obligation
-  // Uses exact same underlying data and calculation logic as regular Club Duty leaderboard
+  // Admin reversed Club Duty leaderboard ("looserboard")
+  // Shows who has done the least dugnad / has greatest remaining duty obligation.
+  // Coaches never appear here (club duty is a player-only obligation); explicitly
+  // exempt players are also excluded here, but remain visible on the normal
+  // Club Duty leaderboard in LeaderboardView — exemptFromDutyReverse only affects
+  // this reversed admin view, nothing else.
   const dutyEligiblePersons = $derived(() => {
-    const approvedDugnad = dugnad.filter(d => d.status === "approved");
     return persons.filter(p => {
-      // Explicitly exempt players are excluded from the reversed leaderboard.
+      if (p.type === "coach") return false;
       if (p.exemptFromDutyReverse) return false;
-      // Regular players are always eligible
-      if (p.type === "player") return true;
-      // Admin is included as player if admin has person data & dugnad points/records in the dataset
-      const hasDugnadPoints = approvedDugnad.some(d => d.playerId === p.id && (d.points || 0) > 0);
-      const hasDugnadRecord = dugnad.some(d => d.playerId === p.id);
-      const isAdminRole = (p.role && p.role.toLowerCase().includes("admin")) || (p.firstName && p.firstName.toLowerCase().includes("admin"));
-      return hasDugnadPoints || hasDugnadRecord || isAdminRole;
+      return true;
     });
   });
 
@@ -345,12 +339,26 @@
     (dugnadActivities && dugnadActivities.length > 0) ? dugnadActivities : DEFAULT_DUGNAD_ACTIVITIES
   );
 
+  // Sorted by points, highest first; per-hour activities are grouped before fixed ones
+  const sortedDugnadActivities = $derived(
+    [...activeDugnadActivities].sort((a, b) => {
+      if (a.pointsType !== b.pointsType) {
+        return a.pointsType === "perHour" ? -1 : 1;
+      }
+      return b.pointsPer - a.pointsPer;
+    })
+  );
+
+  const sortedRoleDefinitions = $derived(
+    [...roleDefinitions].sort((a, b) => b.points - a.points)
+  );
+
   // --- Modal States ---
   let isAddPersonOpen = $state(false);
   let newPersonFirstName = $state("");
   let newPersonLastName = $state("");
   let newPersonType = $state<"player" | "coach">("player");
-  let newPersonRole = $state("Outside Hitter");
+  let newPersonPosition = $state("");
   let newPersonNumber = $state<number | undefined>(undefined);
 
   // Add Rule state - occasion rates mandatory
@@ -384,11 +392,13 @@
   let editPersonFirstName = $state("");
   let editPersonLastName = $state("");
   let editPersonType = $state<"player" | "coach">("player");
-  let editPersonRole = $state("Player");
+  let editPersonPosition = $state("");
   let editPersonNumber = $state<number | undefined>(undefined);
   let editPersonFineSum = $state<number>(0);
   let editPersonDutyPoints = $state<number>(0);
+  let totalsManuallyEdited = $state(false);
   let editPersonExemptFromDutyReverse = $state<boolean>(false);
+  let busyRoleIds = $state<Set<string>>(new Set());
 
   // Edit Rule Modal - occasion rates mandatory
   let editingRule = $state<FineRule | null>(null);
@@ -411,6 +421,15 @@
   let editDugnadActpointsPer = $state<number>(10);
   let editDugnadActPointsType = $state<"perHour" | "fixed">("perHour");
 
+  // Role Definitions Add / Edit (Dugnad Rates tab)
+  let isAddRoleDefOpen = $state(false);
+  let newRoleDefTitle = $state("");
+  let newRoleDefPoints = $state<number>(10);
+
+  let editingRoleDefinition = $state<RoleDefinition | null>(null);
+  let editRoleDefTitle = $state("");
+  let editRoleDefPoints = $state<number>(10);
+
   // Helper to safely parse occasion fine overrides
   function parseRate(val: any): number | undefined {
     if (val === undefined || val === null || val === "" || String(val).trim() === "") {
@@ -421,6 +440,23 @@
       return undefined;
     }
     return num;
+  }
+
+  function adjustActDefaultHours(delta: number) {
+    newDugnadActDefaultHours = Math.min(24, Math.max(0.25, Number((newDugnadActDefaultHours + delta).toFixed(2))));
+  }
+
+  function formatActHours(h: number): string {
+    const totalMinutes = Math.round(h * 60);
+    const hrs = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hrs === 0) return `${mins}m`;
+    if (mins === 0) return `${hrs}h`;
+    return `${hrs}h ${mins}m`;
+  }
+
+  function adjustEditActDefaultHours(delta: number) {
+    editDugnadActDefaultHours = Math.min(24, Math.max(0.25, Number((editDugnadActDefaultHours + delta).toFixed(2))));
   }
 
   // --- Handlers ---
@@ -507,7 +543,7 @@
     editPersonFirstName = person.firstName;
     editPersonLastName = person.lastName;
     editPersonType = person.type;
-    editPersonRole = person.role || "";
+    editPersonPosition = person.position || "";
     editPersonNumber = person.number;
 
     const pFines = fines.filter(f => f.playerId === person.id && f.status === 'approved');
@@ -516,6 +552,34 @@
     const pDug = dugnad.filter(d => d.playerId === person.id && d.status === 'approved');
     editPersonDutyPoints = pDug.reduce((sum, d) => sum + (d.points || 0), 0);
     editPersonExemptFromDutyReverse = Boolean(person.exemptFromDutyReverse);
+    totalsManuallyEdited = false;
+  }
+
+  // Always reflects the live persons list, so role checkboxes update immediately
+  // after a toggle (role assignment is saved instantly, independent of the
+  // "Save Player" button which only covers name/position/number/fines/duty).
+  const editingPersonLive = $derived(
+    editingPerson ? (persons.find(p => p.id === editingPerson!.id) ?? editingPerson) : null
+  );
+
+  async function toggleEditingPersonRole(roleId: string, currentlyHeld: boolean) {
+    if (!editingPersonLive) return;
+    const personId = editingPersonLive.id;
+    busyRoleIds = new Set(busyRoleIds).add(roleId);
+    try {
+      if (currentlyHeld) {
+        await onRemoveRole(personId, roleId);
+      } else {
+        await onAssignRole(personId, roleId);
+      }
+    } catch (err: any) {
+      console.error("[AdminDashboard] Error toggling role:", err);
+      notify("Kunne ikke oppdatere rolle: " + (err?.message || "Ukjent feil"), "error");
+    } finally {
+      const next = new Set(busyRoleIds);
+      next.delete(roleId);
+      busyRoleIds = next;
+    }
   }
 
   let isSavingPerson = $state(false);
@@ -527,20 +591,12 @@
     const personId = editingPerson.id;
     const numVal = editPersonNumber !== undefined && String(editPersonNumber).trim() !== "" ? Number(editPersonNumber) : undefined;
 
-    console.log("[AdminDashboard] saveEditedPerson saving player:", personId, {
-      firstName: editPersonFirstName.trim(),
-      lastName: editPersonLastName.trim(),
-      type: editPersonType,
-      role: editPersonRole.trim(),
-      number: numVal
-    });
-
     try {
       await onUpdatePerson(personId, {
         firstName: editPersonFirstName.trim(),
         lastName: editPersonLastName.trim(),
         type: editPersonType,
-        role: editPersonRole.trim(),
+        position: editPersonPosition.trim(),
         number: numVal,
         exemptFromDutyReverse: editPersonExemptFromDutyReverse
       });
@@ -549,10 +605,17 @@
       const rate = settings.hourlyPointsRate || 10;
       const targetDuty = editPersonType === 'player' ? ((Number(editPersonDutyPoints) || 0) / rate) : undefined;
 
-      if (onAdjustPersonTotals) {
-        await onAdjustPersonTotals(personId, targetFine, targetDuty);
-      } else {
-        await h4aStore.setPersonTotals(personId, targetFine, targetDuty);
+      // Only push a direct totals adjustment if the admin actually touched the
+      // Fines Sum / Club Duty fields. Otherwise these values are just a stale
+      // snapshot from when the modal opened, and forcing them back would fight
+      // with anything that changed the person's totals meanwhile (e.g. a role
+      // assignment made from this same modal).
+      if (totalsManuallyEdited) {
+        if (onAdjustPersonTotals) {
+          await onAdjustPersonTotals(personId, targetFine, targetDuty);
+        } else {
+          await h4aStore.setPersonTotals(personId, targetFine, targetDuty);
+        }
       }
 
       notify("Spilleren og ledertavlen ble oppdatert!");
@@ -572,7 +635,7 @@
     onAddPerson(
       newPersonFirstName.trim(),
       newPersonLastName.trim(),
-      newPersonRole.trim(),
+      newPersonPosition.trim(),
       newPersonType,
       newPersonNumber !== undefined && String(newPersonNumber) !== "" ? Number(newPersonNumber) : undefined
     );
@@ -580,7 +643,7 @@
     notify(`Added ${newPersonFirstName.trim()} ${newPersonLastName.trim()} to team`);
     newPersonFirstName = "";
     newPersonLastName = "";
-    newPersonRole = "Outside Hitter";
+    newPersonPosition = "";
     newPersonNumber = undefined;
     isAddPersonOpen = false;
   }
@@ -697,6 +760,40 @@
     editingDugnadActivity = null;
   }
 
+  // --- Role Definition Handlers ---
+  function openEditRoleDefinition(roleDef: RoleDefinition) {
+    editingRoleDefinition = roleDef;
+    editRoleDefTitle = roleDef.title;
+    editRoleDefPoints = roleDef.points;
+  }
+
+  function handleAddRoleDefSubmit(e: SubmitEvent) {
+    e.preventDefault();
+    if (!newRoleDefTitle.trim()) return;
+
+    onAddRoleDefinition?.({
+      title: newRoleDefTitle.trim(),
+      points: Number(newRoleDefPoints) || 0
+    });
+
+    notify(`Added role "${newRoleDefTitle.trim()}"`);
+    newRoleDefTitle = "";
+    newRoleDefPoints = 10;
+    isAddRoleDefOpen = false;
+  }
+
+  function saveEditedRoleDefinition() {
+    if (!editingRoleDefinition || !editRoleDefTitle.trim()) return;
+
+    onUpdateRoleDefinition?.(editingRoleDefinition.id, {
+      title: editRoleDefTitle.trim(),
+      points: Number(editRoleDefPoints) || 0
+    });
+
+    notify(`Updated points for "${editRoleDefTitle.trim()}"`);
+    editingRoleDefinition = null;
+  }
+
   function toggleFinePotPublication() {
     onUpdateSettings({
       finePotPublished: !settings.finePotPublished
@@ -739,7 +836,7 @@
           Admin-adgang kreves
         </h2>
         <p class="text-xs sm:text-sm text-[var(--color-text-muted)] mt-1.5 leading-relaxed">
-          Oppgi din <strong>ADMIN_ACCESS_KEY</strong> for å låse opp administrasjonspanelet, eller åpne via din admin-URL (<code class="text-[var(--ntnui-green)] bg-[var(--ntnui-green)]/10 px-1.5 py-0.5 rounded font-mono text-xs">/admin?key=...</code>).
+          Enter your <strong>ADMIN_ACCESS_KEY</strong> to unlock the administration panel, or access it via your admin URL (<code class="text-[var(--ntnui-green)] bg-[var(--ntnui-green)]/10 px-1.5 py-0.5 rounded font-mono text-xs">/admin?key=...</code>).
         </p>
       </div>
 
@@ -785,7 +882,7 @@
             <span>Verifiserer nøkkel...</span>
           {:else}
             <Unlock class="w-4 h-4" />
-            <span>Lås opp Admin-panelet</span>
+            <span>Unlock Admin</span>
           {/if}
         </button>
       </form>
@@ -1121,8 +1218,7 @@
           <form onsubmit={handleAddPersonSubmit} class="p-4 bg-[var(--color-text)]/5 border-y border-[var(--color-text)]/15">
             <div class="flex items-center justify-between">
               <h4 class="text-xs sm:text-sm font-bold text-[var(--color-text)] flex items-center gap-2">
-                <UserPlus class="w-4 h-4 text-[var(--ntnui-green)]" />
-                <span>Add New Team Member / Staff</span>
+                <span>Add New Team Member</span>
               </h4>
               <button type="button" onclick={() => isAddPersonOpen = false} class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer">
                 <X class="w-4 h-4" />
@@ -1154,24 +1250,24 @@
               </div>
 
               <div>
-                <label for="adm-person-type" class="block text-xs font-bold text-[var(--color-text)] mb-1">Role Type</label>
+                <label for="adm-person-type" class="block text-xs font-bold text-[var(--color-text)] mb-1">Position Type</label>
                 <select
                   id="adm-person-type"
                   bind:value={newPersonType}
                   class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
                 >
                   <option value="player">Player</option>
-                  <option value="coach">Coach / Staff</option>
+                  <option value="coach">Coach</option>
                 </select>
               </div>
 
               <div>
-                <label for="adm-person-role" class="block text-xs font-bold text-[var(--color-text)] mb-1">Position / Title</label>
+                <label for="adm-person-position" class="block text-xs font-bold text-[var(--color-text)] mb-1">Position</label>
                 <input
-                  id="adm-person-role"
+                  id="adm-person-position"
                   type="text"
                   placeholder="e.g. Setter"
-                  bind:value={newPersonRole}
+                  bind:value={newPersonPosition}
                   class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
                 />
               </div>
@@ -1183,25 +1279,31 @@
                   type="number"
                   placeholder="4"
                   bind:value={newPersonNumber}
-                  class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
+                  class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
             </div>
 
-            <div class="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onclick={() => isAddPersonOpen = false}
-                class="px-3 py-1.5 rounded-lg border border-[var(--color-text)]/30 bg-[var(--color-surface)] text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-text)]/5 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
-              >
-                Save Member
-              </button>
+            <div class="flex items-center justify-between gap-2 pt-2">
+              <p class="text-[11px] text-[var(--color-text-muted)] text-left">
+                Roles (e.g. Team Accountant) are assigned after the player is added, from the roster's Edit menu.
+              </p>
+
+              <div class="flex gap-2 shrink-0">
+                <button
+                  type="button"
+                  onclick={() => isAddPersonOpen = false}
+                  class="px-3 py-1.5 rounded-lg border border-[var(--color-text)]/30 bg-[var(--color-surface)] text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-text)]/5 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
+                >
+                  Save Member
+                </button>
+              </div>
             </div>
           </form>
         {/if}
@@ -1214,6 +1316,7 @@
                 <th class="p-3.5 pl-5">Full Name</th>
                 <th class="p-3.5">Type</th>
                 <th class="p-3.5">Position</th>
+                <th class="p-3.5">Roles</th>
                 <th class="p-3.5">Jersey</th>
                 <th class="p-3.5">Fines Sum</th>
                 <th class="p-3.5">Club Duty</th>
@@ -1246,9 +1349,30 @@
                   <td class="p-3.5">
                     <div class="flex items-center">
                       <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-text)]/10 text-[var(--color-text)]">
-                        {p.role || "Player"}
+                        {p.position || "Potato"}
                       </span>
                     </div>
+                  </td>
+
+                  <td class="p-3.5">
+                    {#if p.roleIds && p.roleIds.length > 0}
+                      <div class="flex flex-col items-start gap-1">
+                        {#each p.roleIds as roleId}
+                          {@const roleDef = roleDefinitions.find(r => r.id === roleId)}
+                          {#if roleDef}
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-text)]/10 text-[var(--color-text)]" title="+{roleDef.points} pts">
+                              {roleDef.title}
+                            </span>
+                          {/if}
+                        {/each}
+                      </div>
+                    {:else}
+                      <div class="flex items-center">
+                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-text)]/10 text-[var(--color-text)]">
+                          -
+                        </span>
+                      </div>
+                    {/if}
                   </td>
 
                   <td class="p-3.5 font-mono font-bold">
@@ -1353,7 +1477,7 @@
                       {/if}
                     </div>
                     <div class="text-[11px] text-[var(--color-text-muted)]">
-                      {item.person.role || "Player"} {item.person.number ? `• #${item.person.number}` : ""} • {item.count} {item.count === 1 ? 'dugnad' : 'dugnader'}
+                      {item.person.position || "Potato"} {item.person.number ? `• #${item.person.number}` : ""}
                     </div>
                   </div>
                 </div>
@@ -1398,7 +1522,6 @@
           <form onsubmit={handleAddRuleSubmit} class="p-4 bg-[var(--color-text)]/5 border-y border-[var(--color-text)]/15">
             <div class="flex items-center justify-between">
               <h4 class="text-xs sm:text-sm font-bold text-[var(--color-text)] flex items-center gap-2">
-                <Plus class="w-4 h-4 text-[var(--ntnui-green)]" />
                 <span>Add New Fine Rule</span>
               </h4>
               <button type="button" onclick={() => isAddRuleOpen = false} class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer">
@@ -1412,14 +1535,14 @@
                 <input
                   id="adm-rule-title"
                   type="text"
-                  placeholder="e.g. Late for warm-up / team call-up"
+                  placeholder="e.g. Late for warm-up"
                   bind:value={newRuleTitle}
                   required
                   class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
                 />
               </div>
 
-              <!-- Occasion-Specific Amounts (Mandatory) -->
+              <!-- Occasion-Specific Amounts-->
               <div class="p-3.5 bg-[var(--color-surface)] rounded-xl border border-[var(--color-text)]/15 space-y-2">
                 <div>
                   <span class="block text-xs font-bold text-[var(--color-text)]">
@@ -1435,11 +1558,11 @@
                     <input
                       id="adm-match-rate"
                       type="number"
-                      step="1"
+                      step="0.5"
                       min="0"
                       placeholder="e.g. 50"
                       bind:value={newRuleFineMatch}
-                      class="w-full px-2.5 py-1.5 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-md text-[var(--color-text)] text-xs font-bold"
+                      class="w-full px-2.5 py-1.5 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-md text-[var(--color-text)] text-xs font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                   <div>
@@ -1447,11 +1570,11 @@
                     <input
                       id="adm-practice-rate"
                       type="number"
-                      step="1"
+                      step="0.5"
                       min="0"
                       placeholder="e.g. 50"
                       bind:value={newRuleFinePractice}
-                      class="w-full px-2.5 py-1.5 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-md text-[var(--color-text)] text-xs font-bold"
+                      class="w-full px-2.5 py-1.5 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-md text-[var(--color-text)] text-xs font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                   <div>
@@ -1459,11 +1582,11 @@
                     <input
                       id="adm-social-rate"
                       type="number"
-                      step="1"
+                      step="0.5"
                       min="0"
                       placeholder="e.g. 50"
                       bind:value={newRuleFineSocial}
-                      class="w-full px-2.5 py-1.5 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-md text-[var(--color-text)] text-xs font-bold"
+                      class="w-full px-2.5 py-1.5 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-md text-[var(--color-text)] text-xs font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 </div>
@@ -1633,16 +1756,40 @@
 
                 {#if newDugnadActPointsType === "perHour"}
                 <div>
-                  <label for="new-act-hours" class="block text-xs font-bold text-[var(--color-text)] mb-1">Standard Duration (Hours)</label>
-                  <input
-                    id="new-act-hours"
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    max="24"
-                    bind:value={newDugnadActDefaultHours}
-                    class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
-                  />
+                  <label for="new-act-hours" class="block text-xs font-bold text-[var(--color-text)] mb-1">Standard Duration</label>
+                  <div class="relative">
+                    <div
+                      id="new-act-hours"
+                      class="w-full h-10 px-3.5 pr-10 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium text-sm flex items-center"
+                      aria-label="Standard Duration"
+                      position="spinbutton"
+                      aria-valuemin="0.5"
+                      aria-valuemax="24"
+                      aria-valuenow={newDugnadActDefaultHours}
+                    >
+                      {formatActHours(newDugnadActDefaultHours)}
+                    </div>
+
+                    <div class="absolute right-1 top-1 bottom-1 flex flex-col">
+                      <button
+                        type="button"
+                        onclick={() => adjustActDefaultHours(0.25)}
+                        class="flex-1 w-8 flex items-center justify-center rounded-t-lg text-xs text-[var(--color-text-muted)]/70 hover:bg-[var(--ntnui-green)]/10 hover:text-[var(--ntnui-green)] active:bg-[var(--ntnui-green)]/20 cursor-pointer"
+                        aria-label="Increase standard duration by 15 minutes"
+                      >
+                        ▲
+                      </button>
+
+                      <button
+                        type="button"
+                        onclick={() => adjustActDefaultHours(-0.25)}
+                        class="flex-1 w-8 flex items-center justify-center rounded-b-lg text-xs text-[var(--color-text-muted)]/70 hover:bg-[var(--ntnui-red)]/10 hover:text-[var(--ntnui-red)] active:bg-[var(--ntnui-red)]/20 cursor-pointer"
+                        aria-label="Decrease standard duration by 15 minutes"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 {/if}
 
@@ -1655,7 +1802,7 @@
                     min="1"
                     bind:value={newDugnadActpointsPer}
                     required
-                    class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
+                    class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
@@ -1680,7 +1827,7 @@
 
           <!-- Activities Table -->
           <div class="divide-y divide-[var(--color-text)]/10">
-            {#each activeDugnadActivities as act}
+            {#each sortedDugnadActivities as act}
               <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[var(--color-text)]/5">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
@@ -1718,6 +1865,138 @@
                 </div>
               </div>
             {/each}
+          </div>
+        </div>
+
+        <!-- Roles Catalog -->
+        <div class="bg-[var(--color-surface)] rounded-2xl shadow-xs border border-[var(--color-border-strong)] overflow-hidden">
+          <div class="p-4 sm:p-5 bg-[var(--ntnui-green)] text-[var(--ntnui-black-dark)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base sm:text-lg font-bold text-[var(--color-text)] tracking-tight flex items-center gap-2">
+                <span>Roles ({roleDefinitions.length})</span>
+              </h3>
+              <p class="text-xs text-[var(--color-text)]/85 mt-0.5">
+                Point value awarded to a person for as long as they hold each role. Assign roles to people from the Roster tab.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onclick={() => isAddRoleDefOpen = true}
+              class="px-3.5 py-2 rounded-xl bg-[var(--color-surface)] hover:bg-[var(--color-surface)]/60 text-[var(--color-text)] font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+            >
+              <Plus class="w-4 h-4" />
+              <span>Add Role</span>
+            </button>
+          </div>
+
+          <!-- Add Role Definition Form -->
+          {#if isAddRoleDefOpen}
+            <form onsubmit={handleAddRoleDefSubmit} class="p-4 bg-[var(--color-text)]/5 border-y border-[var(--color-text)]/15">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs sm:text-sm font-bold text-[var(--color-text)] flex items-center gap-2">
+                  <Plus class="w-4 h-4 text-[var(--ntnui-green)]" />
+                  <span>Add New Role & Point Value</span>
+                </h4>
+                <button type="button" onclick={() => isAddRoleDefOpen = false} class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer">
+                  <X class="w-4 h-4" />
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
+                <div class="sm:col-span-2">
+                  <label for="new-role-title" class="block text-xs font-bold text-[var(--color-text)] mb-1">Role Title *</label>
+                  <input
+                    id="new-role-title"
+                    type="text"
+                    placeholder="e.g. Team Accountant"
+                    bind:value={newRoleDefTitle}
+                    required
+                    class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label for="new-role-points" class="block text-xs font-bold text-[var(--color-text)] mb-1">Points (while held) *</label>
+                  <input
+                    id="new-role-points"
+                    type="number"
+                    step="1"
+                    min="0"
+                    bind:value={newRoleDefPoints}
+                    required
+                    class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] focus:ring-2 focus:ring-[var(--ntnui-green)]/30 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div class="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onclick={() => isAddRoleDefOpen = false}
+                  class="px-3 py-1.5 rounded-lg border border-[var(--color-text)]/30 bg-[var(--color-surface)] text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-text)]/5 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
+                >
+                  Save Role
+                </button>
+              </div>
+            </form>
+          {/if}
+
+          <!-- Roles Table -->
+          <div class="divide-y divide-[var(--color-text)]/10">
+            {#each sortedRoleDefinitions as roleDef}
+              {@const holderCount = persons.filter(p => (p.roleIds || []).includes(roleDef.id)).length}
+              <div class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[var(--color-text)]/5">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-bold text-[var(--color-text)] text-xs sm:text-sm">
+                      {roleDef.title}
+                    </span>
+                    <span class="text-xs font-black text-[var(--ntnui-green)] bg-[var(--ntnui-green)]/10 px-2 py-0.5 rounded border border-[var(--ntnui-green)]/30">
+                      +{roleDef.points} pts
+                    </span>
+                    {#if holderCount > 0}
+                      <span class="text-[11px] font-semibold text-[var(--color-text-muted)]">
+                        {holderCount} {holderCount === 1 ? 'person holds this' : 'people hold this'}
+                      </span>
+                    {/if}
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onclick={() => openEditRoleDefinition(roleDef)}
+                    class="p-1.5 text-xs font-semibold rounded-lg bg-[var(--color-text)]/5 hover:bg-[var(--color-text)]/10 text-[var(--color-text)] flex items-center gap-1 cursor-pointer"
+                  >
+                    <Edit3 class="w-3.5 h-3.5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => {
+                      if (confirm(`Are you sure you want to delete the role "${roleDef.title}"? This removes it from anyone currently holding it and retracts their points.`)) {
+                        onDeleteRoleDefinition?.(roleDef.id);
+                        notify(`Deleted role "${roleDef.title}"`);
+                      }
+                    }}
+                    class="p-1.5 rounded-lg bg-[var(--ntnui-red)]/10 hover:bg-[var(--ntnui-red)]/15 text-[var(--ntnui-red)] cursor-pointer"
+                    title="Delete role"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            {/each}
+            {#if roleDefinitions.length === 0}
+              <p class="p-4 text-xs text-[var(--color-text-muted)] italic">No roles defined yet.</p>
+            {/if}
           </div>
         </div>
       </div>
@@ -2091,7 +2370,7 @@
                 <!-- Upload Drag & Drop Box -->
                 <label
                   for="team-data-file-input"
-                  class="border-2 border-dashed border-[var(--color-text)]/30 hover:border-[var(--ntnui-green)] bg-[var(--color-text)]/5 hover:bg-[var(--ntnui-green)]/10 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all"
+                  class="border-2 border-dashed border-[var(--color-text)]/30 hover:border-[var(--ntnui-green)] bg-[var(--color-text)]/5 hover:bg-[var(--ntnui-green)]/10 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all"
                 >
                   <FileUp class="w-7 h-7 text-[var(--color-text-muted)] mb-2" />
                   <span class="text-xs font-bold text-[var(--color-text)]">
@@ -2344,10 +2623,10 @@
                 <input
                   id="edit-fine-amount"
                   type="number"
-                  step="1"
+                  step="0.5"
                   min="0"
                   bind:value={editFineAmount}
-                  class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold"
+                  class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
 
@@ -2452,10 +2731,10 @@
                 <input
                   id="edit-dug-pts"
                   type="number"
-                  step="1"
+                  step="0.5"
                   min="0"
                   bind:value={editDugnadPoints}
-                  class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold"
+                  class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
 
@@ -2525,8 +2804,8 @@
     <!-- MODAL: Edit Person -->
     {#if editingPerson}
       <div class="fixed inset-0 z-50 bg-[var(--ntnui-black-dark)]/70 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-[var(--color-surface)] rounded-2xl shadow-xl max-w-md w-full p-6 border border-[var(--color-text)]/15">
-          <div class="flex items-center justify-between">
+        <div class="bg-[var(--color-surface)] rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden border border-[var(--color-text)]/15">
+          <div class="flex items-center justify-between p-6 pb-0 shrink-0">
             <h4 class="font-bold text-base text-[var(--color-text)]">
               Edit Team Member
             </h4>
@@ -2535,7 +2814,7 @@
             </button>
           </div>
 
-          <div class="space-y-3 text-xs sm:text-sm">
+          <div class="space-y-3 text-xs sm:text-sm overflow-y-auto flex-1 px-6 py-4">
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label for="edit-p-fname" class="block text-xs font-bold text-[var(--color-text)] mb-1">First Name *</label>
@@ -2566,7 +2845,7 @@
                   class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium"
                 >
                   <option value="player">Player</option>
-                  <option value="coach">Coach / Staff</option>
+                  <option value="coach">Coach</option>
                 </select>
               </div>
               <div>
@@ -2575,19 +2854,49 @@
                   id="edit-p-num"
                   type="number"
                   bind:value={editPersonNumber}
-                  class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)]"
+                  class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
             </div>
 
             <div>
-              <label for="edit-p-role" class="block text-xs font-bold text-[var(--color-text)] mb-1">Position / Role</label>
+              <label for="edit-p-position" class="block text-xs font-bold text-[var(--color-text)] mb-1">Position</label>
               <input
-                id="edit-p-role"
+                id="edit-p-position"
                 type="text"
-                bind:value={editPersonRole}
+                bind:value={editPersonPosition}
                 class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)]"
               />
+            </div>
+
+            {#if editPersonType !== "coach"}
+            <div>
+              <span class="block text-xs font-bold text-[var(--color-text)] mb-1">Roles</span>
+              <p class="text-[11px] text-[var(--color-text-muted)] mb-2">
+                Toggling a role saves immediately and logs the point award/retraction to the Activity Log.
+              </p>
+              <div class="space-y-1.5">
+                {#each sortedRoleDefinitions as roleDef}
+                  {@const held = (editingPersonLive?.roleIds || []).includes(roleDef.id)}
+                  {@const busy = busyRoleIds.has(roleDef.id)}
+                  <label class="flex items-center gap-2.5 p-2.5 bg-[var(--color-text)]/5 rounded-lg border border-[var(--color-text)]/15 cursor-pointer {busy ? 'opacity-60 cursor-wait' : ''}">
+                    <input
+                      type="checkbox"
+                      checked={held}
+                      disabled={busy}
+                      onchange={() => toggleEditingPersonRole(roleDef.id, held)}
+                      class="w-4 h-4 rounded border-[var(--color-text)]/30 text-[var(--ntnui-green)] focus:ring-[var(--ntnui-green)]"
+                    />
+                    <span class="flex-1 text-xs font-semibold text-[var(--color-text)]">{roleDef.title}</span>
+                    <span class="text-[11px] font-bold text-[var(--color-text-muted)]">+{roleDef.points} pts</span>
+                  </label>
+                {/each}
+                {#if roleDefinitions.length === 0}
+                  <p class="text-[11px] text-[var(--color-text-muted)] italic">
+                    No roles defined yet. Add role types under the Dugnad Rates tab.
+                  </p>
+                {/if}
+              </div>
             </div>
 
             <label class="flex items-start gap-2.5 p-3.5 bg-[var(--ntnui-yellow)]/10 rounded-xl border border-[var(--ntnui-yellow)]/40 cursor-pointer">
@@ -2599,16 +2908,17 @@
               <span>
                 <span class="block text-xs font-bold text-[var(--color-text)]">Exclude from reversed Club Duty leaderboard</span>
                 <span class="block text-[11px] text-[var(--color-text)] mt-0.5">
-                  This person will not appear in the admin reversed ranking.
+                  This person holds a position such as coach or is on the board of either NTNUI Volleyball or NTNUI as a whole.
                 </span>
               </span>
             </label>
+            {/if}
 
             <!-- Direct Leaderboards & Totals Adjustment -->
             <div class="p-3.5 bg-[var(--color-text)]/5 rounded-xl border border-[var(--color-text)]/15 space-y-2.5">
               <div>
                 <span class="block text-xs font-bold text-[var(--color-text)]">
-                  Direct Leaderboards & Totals Adjustment
+                  Adjust stats
                 </span>
                 <span class="block text-[11px] text-[var(--color-text-muted)] italic mt-0.5">
                   Directly adjust this person's recorded fine total and club duty points.
@@ -2620,12 +2930,13 @@
                     Fines Sum (kr)
                   </label>
                   <div class="relative">
-                    <input
-                      id="edit-p-finesum"
-                      type="number"
-                      step="5"
+                    <input 
+                      id="edit-p-finesum" 
+                      type="number" 
+                      step="5" 
                       bind:value={editPersonFineSum}
-                      class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
+                      oninput={() => totalsManuallyEdited = true}
+                      class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold focus:ring-2 focus:ring-[var(--ntnui-green)]/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--color-text-muted)]">
                       kr
@@ -2642,10 +2953,11 @@
                       <input
                         id="edit-p-dutypts"
                         type="number"
-                        step="1"
+                        step="0.5"
                         min="0"
                         bind:value={editPersonDutyPoints}
-                        class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold focus:ring-2 focus:ring-[var(--ntnui-green)]/30"
+                        oninput={() => totalsManuallyEdited = true}
+                        class="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold focus:ring-2 focus:ring-[var(--ntnui-green)]/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       />
                       <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--color-text-muted)]">
                         pts
@@ -2661,7 +2973,7 @@
             </div>
           </div>
 
-          <div class="flex justify-end gap-2 pt-2">
+          <div class="flex justify-end gap-2 p-6 pt-3 shrink-0 border-t border-[var(--color-text)]/10">
             <button
               type="button"
               onclick={() => editingPerson = null}
@@ -2727,11 +3039,11 @@
                   <input
                     id="edit-match-rate"
                     type="number"
-                    step="1"
+                    step="0.5"
                     min="0"
                     placeholder="None"
                     bind:value={editRuleFineMatch}
-                    class="w-full p-1.5 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-md text-xs font-bold text-[var(--color-text)]"
+                    class="w-full p-1.5 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-md text-xs font-bold text-[var(--color-text)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
                 <div>
@@ -2739,11 +3051,11 @@
                   <input
                     id="edit-practice-rate"
                     type="number"
-                    step="1"
+                    step="0.5"
                     min="0"
                     placeholder="None"
                     bind:value={editRuleFinePractice}
-                    class="w-full p-1.5 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-md text-xs font-bold text-[var(--color-text)]"
+                    class="w-full p-1.5 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-md text-xs font-bold text-[var(--color-text)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
                 <div>
@@ -2751,11 +3063,11 @@
                   <input
                     id="edit-social-rate"
                     type="number"
-                    step="1"
+                    step="0.5"
                     min="0"
                     placeholder="None"
                     bind:value={editRuleFineSocial}
-                    class="w-full p-1.5 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-md text-xs font-bold text-[var(--color-text)]"
+                    class="w-full p-1.5 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-md text-xs font-bold text-[var(--color-text)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
@@ -2830,18 +3142,42 @@
               </div>
 
               {#if editDugnadActPointsType === "perHour"}
-              <div>
-                <label for="edit-act-hours" class="block text-xs font-bold text-[var(--color-text)] mb-1">Standard Duration (Hours)</label>
-                <input
-                  id="edit-act-hours"
-                  type="number"
-                  step="0.5"
-                  min="0.5"
-                  max="24"
-                  bind:value={editDugnadActDefaultHours}
-                  class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold"
-                />
-              </div>
+                <div>
+                  <label for="edit-act-hours" class="block text-xs font-bold text-[var(--color-text)] mb-1">Standard Duration</label>
+                  <div class="relative">
+                    <div
+                      id="edit-act-hours"
+                      class="w-full h-10 px-3.5 pr-10 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-medium text-sm flex items-center"
+                      aria-label="Standard Duration"
+                      position="spinbutton"
+                      aria-valuemin="0.5"
+                      aria-valuemax="24"
+                      aria-valuenow={editDugnadActDefaultHours}
+                    >
+                      {formatActHours(editDugnadActDefaultHours)}
+                    </div>
+
+                    <div class="absolute right-1 top-1 bottom-1 flex flex-col">
+                      <button
+                        type="button"
+                        onclick={() => adjustEditActDefaultHours(0.25)}
+                        class="flex-1 w-8 flex items-center justify-center rounded-t-lg text-xs text-[var(--color-text-muted)]/70 hover:bg-[var(--ntnui-green)]/10 hover:text-[var(--ntnui-green)] active:bg-[var(--ntnui-green)]/20 cursor-pointer"
+                        aria-label="Increase standard duration by 15 minutes"
+                      >
+                        ▲
+                      </button>
+
+                      <button
+                        type="button"
+                        onclick={() => adjustEditActDefaultHours(-0.25)}
+                        class="flex-1 w-8 flex items-center justify-center rounded-b-lg text-xs text-[var(--color-text-muted)]/70 hover:bg-[var(--ntnui-red)]/10 hover:text-[var(--ntnui-red)] active:bg-[var(--ntnui-red)]/20 cursor-pointer"
+                        aria-label="Decrease standard duration by 15 minutes"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </div>
+                </div>
               {/if}
 
               <div>
@@ -2852,7 +3188,7 @@
                   step="0.5"
                   min="1"
                   bind:value={editDugnadActpointsPer}
-                  class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold"
+                  class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
             </div>
@@ -2872,6 +3208,66 @@
               class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
             >
               Save Rate
+            </button>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    {#if editingRoleDefinition}
+      <div class="fixed inset-0 z-50 bg-[var(--ntnui-black-dark)]/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-[var(--color-surface)] rounded-2xl shadow-xl max-w-md w-full p-6 border border-[var(--color-text)]/15">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold text-base text-[var(--color-text)]">
+              Edit Role & Points
+            </h4>
+            <button type="button" onclick={() => editingRoleDefinition = null} class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <div class="space-y-3 text-xs sm:text-sm">
+            <div>
+              <label for="edit-role-title" class="block text-xs font-bold text-[var(--color-text)] mb-1">Role Title *</label>
+              <input
+                id="edit-role-title"
+                type="text"
+                bind:value={editRoleDefTitle}
+                class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold"
+              />
+            </div>
+
+            <div>
+              <label for="edit-role-points" class="block text-xs font-bold text-[var(--color-text)] mb-1">Points (while held)</label>
+              <input
+                id="edit-role-points"
+                type="number"
+                step="1"
+                min="0"
+                bind:value={editRoleDefPoints}
+                class="w-full px-3 py-2 bg-[var(--color-text)]/5 border border-[var(--color-text)]/30 rounded-lg text-[var(--color-text)] font-bold"
+              />
+            </div>
+
+            <p class="text-[11px] text-[var(--color-text-muted)]">
+              Changing the point value here does not retroactively adjust points already awarded to current role holders — it only applies the next time the role is assigned.
+            </p>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onclick={() => editingRoleDefinition = null}
+              class="px-3.5 py-1.5 rounded-lg border border-[var(--color-text)]/30 text-[var(--color-text)] text-xs font-semibold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onclick={saveEditedRoleDefinition}
+              class="px-4 py-1.5 rounded-lg bg-[var(--ntnui-green)] hover:bg-[var(--ntnui-green)]/90 text-white text-xs font-bold shadow-xs cursor-pointer"
+            >
+              Save Role
             </button>
           </div>
         </div>

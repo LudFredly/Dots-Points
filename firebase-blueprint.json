@@ -2,7 +2,7 @@
   "entities": {
     "AdminUser": {
       "title": "AdminUser",
-      "description": "Authorized administrator record for role-based access control",
+      "description": "Authorized administrator record for position-based access control",
       "type": "object",
       "properties": {
         "uid": {
@@ -12,7 +12,7 @@
           "type": "string",
           "maxLength": 200
         },
-        "role": {
+        "position": {
           "type": "string",
           "enum": [
             "admin",
@@ -26,7 +26,7 @@
       "required": [
         "uid",
         "email",
-        "role"
+        "position"
       ]
     },
     "Person": {
@@ -47,6 +47,10 @@
         },
         "number": {
           "type": "number"
+        },
+        "position": {
+          "type": "string",
+          "maxLength": 100
         },
         "role": {
           "type": "string",

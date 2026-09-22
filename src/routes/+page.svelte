@@ -7,6 +7,7 @@
     FineReport,
     DugnadEntry,
     DugnadActivity,
+    RoleDefinition,
     TeamSettings
   } from "$lib/types";
   import Navbar from "$lib/components/Navbar.svelte";
@@ -23,6 +24,7 @@
   let fines = $state<FineReport[]>([]);
   let dugnad = $state<DugnadEntry[]>([]);
   let dugnadActivities = $state<DugnadActivity[]>([]);
+  let roleDefinitions = $state<RoleDefinition[]>([]);
   let settings = $state<TeamSettings>(h4aStore.settings);
   let activeTab = $state<"fine-form" | "dugnad-form" | "leaderboard" | "history" | "admin">("fine-form");
   let isRulesModalOpen = $state(false);
@@ -33,6 +35,7 @@
     fines = [...h4aStore.fines];
     dugnad = [...h4aStore.dugnad];
     dugnadActivities = [...h4aStore.dugnadActivities];
+    roleDefinitions = [...h4aStore.roleDefinitions];
     settings = { ...h4aStore.settings };
   }
 
@@ -159,6 +162,7 @@
         {fines}
         {dugnad}
         {dugnadActivities}
+        {roleDefinitions}
         {settings}
         onApproveFine={async (id: string) => {
           await h4aStore.setFineStatus(id, "approved");
@@ -178,8 +182,8 @@
         onUpdateDugnad={async (id: string, updates: Partial<DugnadEntry>) => {
           await h4aStore.updateDugnad(id, updates);
         }}
-        onAddPerson={(firstName: string, lastName: string, role: string, type: "player" | "coach", number?: number) => {
-          h4aStore.addPerson(firstName, lastName, role, type, number);
+        onAddPerson={(firstName: string, lastName: string, position: string, type: "player" | "coach", number?: number) => {
+          h4aStore.addPerson(firstName, lastName, position, type, number);
         }}
         onUpdatePerson={(id: string, updates: Partial<Person>) => {
           h4aStore.updatePerson(id, updates);
@@ -207,6 +211,21 @@
         }}
         onDeleteDugnadActivity={(id) => {
           h4aStore.deleteDugnadActivity(id);
+        }}
+        onAddRoleDefinition={(roleDef: Omit<RoleDefinition, "id">) => {
+          h4aStore.addRoleDefinition(roleDef);
+        }}
+        onUpdateRoleDefinition={(id: string, updates: Partial<RoleDefinition>) => {
+          h4aStore.updateRoleDefinition(id, updates);
+        }}
+        onDeleteRoleDefinition={(id: string) => {
+          h4aStore.deleteRoleDefinition(id);
+        }}
+        onAssignRole={async (personId: string, roleId: string) => {
+          await h4aStore.assignRoleToPerson(personId, roleId);
+        }}
+        onRemoveRole={async (personId: string, roleId: string) => {
+          await h4aStore.removeRoleFromPerson(personId, roleId);
         }}
         onUpdateSettings={(newSettings: Partial<TeamSettings>) => {
           h4aStore.updateSettings(newSettings);

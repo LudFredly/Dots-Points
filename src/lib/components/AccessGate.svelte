@@ -25,10 +25,10 @@
       if (ok) {
         onUnlocked?.();
       } else {
-        errorMessage = "Feil tilgangsnøkkel. Kontroller nøkkelen og prøv på nytt.";
+        errorMessage = "Wrong key. Try again.";
       }
     } catch (err: any) {
-      errorMessage = err.message || "Kunne ikke verifisere nøkkelen.";
+      errorMessage = err.message || "Could not verify key.";
     } finally {
       isChecking = false;
     }
@@ -51,7 +51,7 @@
         Botekasse & Dugnadsportal
       </p>
       <p class="text-xs sm:text-sm text-[var(--color-text-muted)] mt-2">
-        Portalen er lukket for allmennheten. Oppgi lagets tilgangsnøkkel (<span class="font-mono text-[var(--color-text)] font-semibold">ACCESS_KEY</span>) for å åpne siden.
+        Access to this portal is restricted. Enter the team's access key (<span class="font-mono text-[var(--color-text)] font-semibold">ACCESS_KEY</span>) to open the page.
       </p>
     </div>
 
@@ -89,7 +89,7 @@
         disabled={isChecking}
         class="w-full py-3 px-4 bg-[var(--ntnui-black-dark)] hover:bg-[var(--ntnui-black-dark)] active:bg-slate-950 text-emerald-400 font-black rounded-xl text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
       >
-        <span>Åpne portalen</span>
+        <span>Open portal</span>
         <ArrowRight class="w-4 h-4" />
       </button>
     </form>
@@ -97,7 +97,7 @@
     <!-- Footer Help -->
     <div class="pt-4 border-t border-[var(--color-border)] flex flex-col gap-2.5 text-xs text-[var(--color-text-faint)]">
       <p>
-        Har du ikke nøkkelen? Spør lagkaptein eller kasserer på Spond/chat.
+        Don't have the key? Ask the team's manager.
       </p>
     </div>
   </div>

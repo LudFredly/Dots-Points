@@ -19,7 +19,8 @@
       "firstName": "ExampleFirstName",
       "lastName": "ExampleLastName",
       "number": 1,
-      "role": "Setter",
+      "position": "Setter",
+      "role": "",
       "type": "player",
       "active": true,
       "totalFineSum": 50,
@@ -66,7 +67,7 @@
       "id": "template-coach-1",
       "firstName": "CoachFirst",
       "lastName": "CoachLast",
-      "role": "Head Coach",
+      "position": "Head Coach",
       "type": "coach",
       "active": true
     }

@@ -42,7 +42,7 @@
   let selectedPlayerId = $state("");
   let selectedActivity = $state(DEFAULT_DUGNAD_ACTIVITIES[0].title);
   let customActivityTitle = $state("");
-  let hours = $state(2.0);
+  let hours = $state(DEFAULT_DUGNAD_ACTIVITIES[0].defaultHours);
   let hadTravel = $state(false);
   let travelHours = $state(1.0);
   let comment = $state("");
@@ -260,7 +260,7 @@
             <option value={p.id}>
               {getPublicDisplayName(p, persons)}
               {p.number ? ` (#${p.number})` : ""}
-              - {p.role || "Player"}
+              - {p.position || "Potato"}
             </option>
           {/each}
         </select>
@@ -347,7 +347,7 @@
                 id="hours-input"
                 class="w-full h-10 px-3.5 pr-10 bg-[var(--color-surface)] border border-[var(--color-text)]/30 rounded-xl text-[var(--color-text)] font-bold text-sm flex items-center"
                 aria-label="Duty Hours Worked"
-                role="spinbutton"
+                position="spinbutton"
                 aria-valuemin="0.25"
                 aria-valuemax="24"
                 aria-valuenow={hours}

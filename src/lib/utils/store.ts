@@ -4,6 +4,7 @@ import type {
   FineReport,
   DugnadEntry,
   DugnadActivity,
+  RoleDefinition,
   TeamSettings,
   PlayerBackupData,
   TeamDataBackup
@@ -24,24 +25,24 @@ import {
 } from "firebase/firestore";
 
 export const DEFAULT_PERSONS: Person[] = [
-  { id: "p1", firstName: "Erik", lastName: "Myhrum", number: undefined, role: "Middle", type: "player", active: true },
-  { id: "p2", firstName: "Erlend", lastName: "Langeggen", number: undefined, role: "Middle", type: "player", active: true },
-  { id: "p3", firstName: "Ethan", lastName: "Bestele", number: undefined, role: "Middle", type: "player", active: true },
-  { id: "p4", firstName: "Jonas", lastName: "Einvik Smehaug", number: undefined, role: "Opposite", type: "player", active: true },
-  { id: "p5", firstName: "Jonas", lastName: "Sunde Kobberdal", number: undefined, role: "Libero", type: "player", active: true },
-  { id: "p6", firstName: "Ludvig", lastName: "Vilmar Fredly", number: 4, role: "Outside", type: "player", active: true },
-  { id: "p7", firstName: "Marius", lastName: "Lindløkken", number: undefined, role: "Setter", type: "player", active: true },
-  { id: "p8", firstName: "Markus", lastName: "Sørland", number: undefined, role: "Potato", type: "player", active: true },
-  { id: "p9", firstName: "Markus", lastName: "Veblungsnes", number: undefined, role: "Opposite", type: "player", active: true },
-  { id: "p10", firstName: "Mikael", lastName: "Bergmester", number: undefined, role: "Libero", type: "player", active: true },
-  { id: "p11", firstName: "Olav", lastName: "Kvåle Gissinger", number: undefined, role: "Potato", type: "player", active: true },
-  { id: "p12", firstName: "Sabri", lastName: "Rebaine", number: undefined, role: "Outside", type: "player", active: true },
-  { id: "p13", firstName: "Sondre", lastName: "Vikene", number: undefined, role: "Outside", type: "player", active: true },
-  { id: "p14", firstName: "Thomas", lastName: "Hanstad", number: undefined, role: "Outside", type: "player", active: true },
-  { id: "p15", firstName: "Trond", lastName: "Juvkam", number: undefined, role: "Setter", type: "player", active: true },
-  { id: "p16", firstName: "Vegard", lastName: "Lauritsen", number: undefined, role: "Middle", type: "player", active: true },
-  { id: "c1", firstName: "Andrea", lastName: "Jamne", number: undefined, role: "Coach", type: "coach", active: true },
-  { id: "c2", firstName: "Erle", lastName: "Letnes Levorsen", number: undefined, role: "Coach", type: "coach", active: true }
+  { id: "p1", firstName: "Erik", lastName: "Myhrum", number: undefined, position: "Middle", type: "player", active: true },
+  { id: "p2", firstName: "Erlend", lastName: "Langeggen", number: undefined, position: "Middle", type: "player", active: true },
+  { id: "p3", firstName: "Ethan", lastName: "Bestele", number: undefined, position: "Middle", type: "player", active: true },
+  { id: "p4", firstName: "Jonas", lastName: "Einvik Smehaug", number: undefined, position: "Opposite", type: "player", active: true },
+  { id: "p5", firstName: "Jonas", lastName: "Sunde Kobberdal", number: undefined, position: "Libero", type: "player", active: true },
+  { id: "p6", firstName: "Ludvig", lastName: "Vilmar Fredly", number: 4, position: "Outside", type: "player", active: true },
+  { id: "p7", firstName: "Marius", lastName: "Lindløkken", number: undefined, position: "Setter", type: "player", active: true },
+  { id: "p8", firstName: "Markus", lastName: "Sørland", number: undefined, position: "Outside", type: "player", active: true },
+  { id: "p9", firstName: "Markus", lastName: "Veblungsnes", number: undefined, position: "Opposite", type: "player", active: true },
+  { id: "p10", firstName: "Mikael", lastName: "Bergmester", number: undefined, position: "Libero", type: "player", active: true },
+  { id: "p11", firstName: "Olav", lastName: "Kvåle Gissinger", number: undefined, position: "Opposite", type: "player", active: true },
+  { id: "p12", firstName: "Sabri", lastName: "Rebaine", number: undefined, position: "Outside", type: "player", active: true },
+  { id: "p13", firstName: "Sondre", lastName: "Vikene", number: undefined, position: "Outside", type: "player", active: true },
+  { id: "p14", firstName: "Thomas", lastName: "Hanstad", number: undefined, position: "Outside", type: "player", active: true },
+  { id: "p15", firstName: "Trond", lastName: "Juvkam", number: undefined, position: "Setter", type: "player", active: true },
+  { id: "p16", firstName: "Vegard", lastName: "Lauritsen", number: undefined, position: "Middle", type: "player", active: true },
+  { id: "c1", firstName: "Andrea", lastName: "Jamne", number: undefined, position: "Libero", type: "coach", active: true },
+  { id: "c2", firstName: "Erle", lastName: "Letnes Levorsen", number: undefined, position: "Outside", type: "coach", active: true }
 ];
 
 export const DEFAULT_FINE_RULES: FineRule[] = [
@@ -276,6 +277,19 @@ export const DEFAULT_DUGNAD_ACTIVITIES: DugnadActivity[] = [
   }
 ];
 
+// Roles a person can hold (e.g. board/committee positions), each with a fixed
+// point value awarded for as long as the person holds the role. Admin edits
+// the point values in the "Dugnad Rates" tab.
+export const DEFAULT_ROLE_DEFINITIONS: RoleDefinition[] = [
+  { id: "role_team_manager", title: "Team manager", points: 10 },
+  { id: "role_team_accountant", title: "Team Accountant", points: 10 },
+  { id: "role_social_media_manager", title: "Social Media Manager", points: 10 },
+  { id: "role_travel_coordinator", title: "Travel Coordinator", points: 10 },
+  { id: "role_social_event_coordinator", title: "Social Event Coordinator", points: 10 },
+  { id: "role_volunteer_coordinator", title: "Volunteer Coordinator", points: 10 },
+  { id: "role_penalty_points_coordinator", title: "Penalty Points Coordinator", points: 10 }
+];
+
 export const DEFAULT_SETTINGS: TeamSettings = {
   teamName: "H4A",
   season: "26/27",
@@ -319,6 +333,7 @@ export class H4ADataManager {
   fines: FineReport[] = [];
   dugnad: DugnadEntry[] = [];
   dugnadActivities: DugnadActivity[] = [];
+  roleDefinitions: RoleDefinition[] = [];
   settings: TeamSettings = DEFAULT_SETTINGS;
   isConfigured: boolean = isFirebaseConfigured;
   connectionError: string | null = null;
@@ -490,6 +505,7 @@ export class H4ADataManager {
       this.persons = [...DEFAULT_PERSONS];
       this.rules = this.sortRulesByFine([...DEFAULT_FINE_RULES]);
       this.dugnadActivities = [...DEFAULT_DUGNAD_ACTIVITIES];
+      this.roleDefinitions = [...DEFAULT_ROLE_DEFINITIONS];
       this.isLoading = false;
       this.notify();
       return;
@@ -511,10 +527,11 @@ export class H4ADataManager {
   }
 
   private async seedDefaultDataIfNeeded(): Promise<void> {
-    const [personsSnapshot, rulesSnapshot, activitiesSnapshot, settingsSnapshot] = await Promise.all([
+    const [personsSnapshot, rulesSnapshot, activitiesSnapshot, roleDefsSnapshot, settingsSnapshot] = await Promise.all([
       getDocs(collection(database, "persons")),
       getDocs(collection(database, "fine_rules")),
       getDocs(collection(database, "dugnad_activities")),
+      getDocs(collection(database, "role_definitions")),
       getDoc(doc(database, "settings", "team"))
     ]);
 
@@ -522,8 +539,17 @@ export class H4ADataManager {
     let hasWrites = false;
 
     if (personsSnapshot.empty) {
+      // NOTE: DEFAULT_PERSONS entries commonly have `number: undefined`, which the
+      // Firestore SDK rejects with a synchronous "Unsupported field value" error.
+      // Strip undefined fields before writing (this was the known seed bug).
       for (const person of DEFAULT_PERSONS) {
-        batch.set(doc(database, "persons", person.id), person);
+        const cleanPerson: Record<string, any> = {};
+        for (const [k, v] of Object.entries(person)) {
+          if (v !== undefined) {
+            cleanPerson[k] = v;
+          }
+        }
+        batch.set(doc(database, "persons", person.id), cleanPerson);
       }
       hasWrites = true;
     }
@@ -538,6 +564,13 @@ export class H4ADataManager {
     if (activitiesSnapshot.empty) {
       for (const activity of DEFAULT_DUGNAD_ACTIVITIES) {
         batch.set(doc(database, "dugnad_activities", activity.id), activity);
+      }
+      hasWrites = true;
+    }
+
+    if (roleDefsSnapshot.empty) {
+      for (const roleDef of DEFAULT_ROLE_DEFINITIONS) {
+        batch.set(doc(database, "role_definitions", roleDef.id), roleDef);
       }
       hasWrites = true;
     }
@@ -622,6 +655,28 @@ export class H4ADataManager {
         }
       );
       this.unsubscribers.push(unsubActs);
+
+      // 3b. Role Definitions Listener
+      const unsubRoleDefs = onSnapshot(
+        collection(database, "role_definitions"),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const list: RoleDefinition[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data() as RoleDefinition;
+              list.push({ ...data, id: docSnap.id });
+            });
+            this.roleDefinitions = list;
+          } else {
+            this.roleDefinitions = [...DEFAULT_ROLE_DEFINITIONS];
+          }
+          this.notify();
+        },
+        (err) => {
+          console.error("Role definitions listener error:", err);
+        }
+      );
+      this.unsubscribers.push(unsubRoleDefs);
 
       // 4. Team Settings Listener
       const unsubSettings = onSnapshot(
@@ -723,7 +778,7 @@ export class H4ADataManager {
   async loginWithAdminKey(adminKey: string): Promise<void> {
     const cleanKey = adminKey.trim();
     if (!cleanKey) {
-      throw new Error("Vennligst oppgi ADMIN_ACCESS_KEY.");
+      throw new Error("Please provide ADMIN_ACCESS_KEY.");
     }
 
     if (!this.expectedAdminAccessKey) {
@@ -735,7 +790,7 @@ export class H4ADataManager {
 
     const success = this.verifyAndGrantAdminAccess(cleanKey);
     if (!success) {
-      throw new Error("Ugyldig ADMIN_ACCESS_KEY. Vennligst sjekk nøkkelen.");
+      throw new Error("Invalid ADMIN_ACCESS_KEY. Make sure it is correct.");
     }
   }
 
@@ -944,13 +999,13 @@ export class H4ADataManager {
 
   // --- Roster / Persons Operations ---
 
-  async addPerson(firstName: string, lastName: string, role: string = "Player", type: "player" | "coach" = "player", number?: number): Promise<Person> {
+  async addPerson(firstName: string, lastName: string, position: string, type: "player" | "coach" = "player", number?: number): Promise<Person> {
     const id = "person_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
     const newPerson: Person = {
       id,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      role: role.trim(),
+      position: position.trim(),
       type,
       number: (number !== undefined && !isNaN(number)) ? number : undefined,
       active: true
@@ -991,10 +1046,12 @@ export class H4ADataManager {
       id,
       firstName: updates.firstName !== undefined ? updates.firstName : (existing?.firstName ?? ""),
       lastName: updates.lastName !== undefined ? updates.lastName : (existing?.lastName ?? ""),
-      role: updates.role !== undefined ? updates.role : (existing?.role ?? "Player"),
+      position: updates.position !== undefined ? updates.position : existing?.position,
+      roleIds: updates.roleIds !== undefined ? updates.roleIds : existing?.roleIds,
       type: updates.type !== undefined ? updates.type : (existing?.type ?? "player"),
       number: updates.number !== undefined ? updates.number : (updates.number === null ? undefined : existing?.number),
-      active: updates.active !== undefined ? updates.active : (existing?.active ?? true)
+      active: updates.active !== undefined ? updates.active : (existing?.active ?? true),
+      exemptFromDutyReverse: updates.exemptFromDutyReverse !== undefined ? updates.exemptFromDutyReverse : existing?.exemptFromDutyReverse
     };
 
     this.persons = sortPersonsAlphabetically(this.persons.map(p => p.id === id ? updatedPerson : p));
@@ -1024,6 +1081,58 @@ export class H4ADataManager {
     } catch (err) {
       console.error("[H4A Store] updatePerson failed in Firestore for persons/" + id, err);
       handleFirestoreError(err, OperationType.UPDATE, `persons/${id}`);
+    }
+  }
+
+  // Assign a role to a person: adds the role to their roleIds and creates an
+  // approved Club Duty entry awarding the role's points, so the award shows up
+  // in the Activity Log and counts toward the Club Duty leaderboard immediately.
+  async assignRoleToPerson(personId: string, roleId: string): Promise<void> {
+    const person = this.persons.find(p => p.id === personId);
+    const roleDef = this.roleDefinitions.find(r => r.id === roleId);
+    if (!person || !roleDef) {
+      console.error("[H4A Store] assignRoleToPerson: person or role definition not found", { personId, roleId });
+      return;
+    }
+    if ((person.roleIds || []).includes(roleId)) {
+      return; // already assigned
+    }
+
+    const newRoleIds = [...(person.roleIds || []), roleId];
+    await this.updatePerson(personId, { roleIds: newRoleIds });
+
+    const displayName = `${person.firstName} ${person.lastName}`.trim();
+    await this.addDugnadEntry({
+      playerId: personId,
+      playerName: displayName,
+      activityType: roleDef.title,
+      hours: 0,
+      points: roleDef.points,
+      dutyHours: 0,
+      dutyPoints: roleDef.points,
+      comment: `Role assigned: ${roleDef.title} (+${roleDef.points} pts)`,
+      reportedBy: "Admin",
+      status: "approved",
+      roleId: roleDef.id
+    });
+  }
+
+  // Revoke a role from a person: removes the role from their roleIds and deletes
+  // the Club Duty entry that was created when the role was assigned, so the
+  // points are automatically retracted.
+  async removeRoleFromPerson(personId: string, roleId: string): Promise<void> {
+    const person = this.persons.find(p => p.id === personId);
+    if (!person) {
+      console.error("[H4A Store] removeRoleFromPerson: person not found", { personId, roleId });
+      return;
+    }
+
+    const newRoleIds = (person.roleIds || []).filter(r => r !== roleId);
+    await this.updatePerson(personId, { roleIds: newRoleIds });
+
+    const awardEntry = this.dugnad.find(d => d.playerId === personId && d.roleId === roleId);
+    if (awardEntry) {
+      await this.deleteDugnad(awardEntry.id);
     }
   }
 
@@ -1205,6 +1314,62 @@ export class H4ADataManager {
     }
   }
 
+  // --- Role Definitions (points-per-role, admin-editable) ---
+
+  async addRoleDefinition(roleDef: Omit<RoleDefinition, "id">): Promise<RoleDefinition> {
+    const id = "role_" + Date.now();
+    const newRoleDef: RoleDefinition = { ...roleDef, id };
+    if (!this.isConfigured) {
+      this.roleDefinitions = [...this.roleDefinitions, newRoleDef];
+      this.notify();
+      return newRoleDef;
+    }
+    try {
+      await setDoc(doc(database, "role_definitions", id), newRoleDef);
+      return newRoleDef;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, `role_definitions/${id}`);
+    }
+  }
+
+  async updateRoleDefinition(id: string, updates: Partial<RoleDefinition>): Promise<void> {
+    this.roleDefinitions = this.roleDefinitions.map(r => r.id === id ? { ...r, ...updates } : r);
+    this.notify();
+
+    if (!this.isConfigured) {
+      return;
+    }
+    try {
+      const cleanUpdates: Record<string, any> = {};
+      for (const [k, v] of Object.entries(updates)) {
+        cleanUpdates[k] = v === undefined ? deleteField() : v;
+      }
+      await setDoc(doc(database, "role_definitions", id), cleanUpdates, { merge: true });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `role_definitions/${id}`);
+    }
+  }
+
+  async deleteRoleDefinition(id: string): Promise<void> {
+    // Also strip this role from anyone currently holding it and retract their points,
+    // so we never leave a person referencing a role definition that no longer exists.
+    const holders = this.persons.filter(p => (p.roleIds || []).includes(id));
+    for (const holder of holders) {
+      await this.removeRoleFromPerson(holder.id, id);
+    }
+
+    if (!this.isConfigured) {
+      this.roleDefinitions = this.roleDefinitions.filter(r => r.id !== id);
+      this.notify();
+      return;
+    }
+    try {
+      await deleteDoc(doc(database, "role_definitions", id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `role_definitions/${id}`);
+    }
+  }
+
   // --- Settings Operations ---
 
   async updateSettings(newSettings: Partial<TeamSettings>): Promise<void> {
@@ -1240,6 +1405,7 @@ export class H4ADataManager {
       this.persons = [...DEFAULT_PERSONS];
       this.rules = this.sortRulesByFine([...DEFAULT_FINE_RULES]);
       this.dugnadActivities = [...DEFAULT_DUGNAD_ACTIVITIES];
+      this.roleDefinitions = [...DEFAULT_ROLE_DEFINITIONS];
       this.settings = { ...DEFAULT_SETTINGS };
       this.fines = [];
       this.dugnad = [];
@@ -1249,8 +1415,17 @@ export class H4ADataManager {
     const batch = writeBatch(database);
 
     // Seed Persons
+    // NOTE: DEFAULT_PERSONS entries commonly have `number: undefined`. The Firestore SDK
+    // throws synchronously on undefined field values, so we strip them first (same
+    // sanitization already used in addPerson) instead of writing DEFAULT_PERSONS directly.
     for (const p of DEFAULT_PERSONS) {
-      batch.set(doc(database, "persons", p.id), p);
+      const cleanPerson: Record<string, any> = {};
+      for (const [k, v] of Object.entries(p)) {
+        if (v !== undefined) {
+          cleanPerson[k] = v;
+        }
+      }
+      batch.set(doc(database, "persons", p.id), cleanPerson);
     }
 
     // Seed Fine Rules
@@ -1263,11 +1438,64 @@ export class H4ADataManager {
       batch.set(doc(database, "dugnad_activities", d.id), d);
     }
 
+    // Seed Role Definitions
+    for (const rd of DEFAULT_ROLE_DEFINITIONS) {
+      batch.set(doc(database, "role_definitions", rd.id), rd);
+    }
+
     // Seed Settings
     batch.set(doc(database, "settings", "team"), DEFAULT_SETTINGS);
 
     await batch.commit();
     this.notify();
+  }
+
+  // --- One-time Data Migration ---
+  //
+  // Historical bug: an earlier version of this app mistakenly wrote a person's
+  // volleyball position (e.g. "Middle", "Outside") into a field called `role`
+  // instead of `position`. This left existing persons/* documents in Firestore
+  // with the right value under the wrong field name, which the current code
+  // never reads (it reads `position` and the new `roleIds` array).
+  //
+  // Run this ONCE, manually, e.g. from the browser console on the live site:
+  //   await h4aStore.migrateLegacyRoleField()
+  // It is intentionally not wired to any button or called automatically.
+  async migrateLegacyRoleField(): Promise<{ migrated: number; skipped: number }> {
+    if (!this.isConfigured) {
+      console.warn("[H4A Store] migrateLegacyRoleField: Firestore not configured, nothing to migrate.");
+      return { migrated: 0, skipped: 0 };
+    }
+
+    const snapshot = await getDocs(collection(database, "persons"));
+    const batch = writeBatch(database);
+    let migrated = 0;
+    let skipped = 0;
+
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data() as Record<string, any>;
+      const legacyRole = data.role;
+
+      if (typeof legacyRole !== "string" || legacyRole.trim() === "") {
+        skipped++;
+        return;
+      }
+
+      const updates: Record<string, any> = { role: deleteField() };
+      if (!data.position || String(data.position).trim() === "") {
+        updates.position = legacyRole.trim();
+      }
+
+      batch.update(doc(database, "persons", docSnap.id), updates);
+      migrated++;
+    });
+
+    if (migrated > 0) {
+      await batch.commit();
+    }
+
+    console.log(`[H4A Store] migrateLegacyRoleField: migrated ${migrated} document(s), skipped ${skipped}.`);
+    return { migrated, skipped };
   }
 
   // --- Team Data Export & Import (Backup System) ---
@@ -1293,8 +1521,9 @@ export class H4ADataManager {
           firstName: player.firstName,
           lastName: player.lastName,
           number: player.number,
-          role: player.role,
-          type: "player" as const,
+          position: player.position,
+          roleIds: player.roleIds,
+          type: "player",
           active: player.active !== false,
           totalFineSum,
           totalDugnadHours: Number(totalDugnadHours.toFixed(1)),
@@ -1322,6 +1551,7 @@ export class H4ADataManager {
       teamSettings: { ...this.settings },
       fineRules: [...this.rules],
       dugnadActivities: [...this.dugnadActivities],
+      roleDefinitions: [...this.roleDefinitions],
       players: playersList,
       coaches: coachesList,
       ...(unassignedFines.length > 0 ? { unassignedFines } : {}),
@@ -1334,10 +1564,10 @@ export class H4ADataManager {
     mode: "merge" | "replace"
   ): Promise<{ playersCount: number; finesCount: number; dugnadCount: number }> {
     if (!backup || typeof backup !== "object") {
-      throw new Error("Ugyldig data: backup-filen er ikke et gyldig JSON-objekt.");
+      throw new Error("Invalid data: backup-file is not a valid JSON-object.");
     }
     if (!Array.isArray(backup.players)) {
-      throw new Error("Ugyldig backupformat: 'players' må være en liste med spillere.");
+      throw new Error("Invalid backup format: 'players' must be a list of players.");
     }
 
     const importedPersons: Person[] = [];
@@ -1353,7 +1583,8 @@ export class H4ADataManager {
         firstName: p.firstName || "Player",
         lastName: p.lastName || `${idx + 1}`,
         number: p.number != null ? Number(p.number) : undefined,
-        role: p.role || "Player",
+        position: p.position,
+        roleIds: Array.isArray(p.roleIds) ? p.roleIds : undefined,
         type: "player",
         active: p.active !== false
       });
@@ -1406,7 +1637,8 @@ export class H4ADataManager {
           id: c.id || `c_${Date.now()}_${idx}`,
           firstName: c.firstName || "Coach",
           lastName: c.lastName || `${idx + 1}`,
-          role: c.role || "Coach",
+          position: c.position,
+          roleIds: Array.isArray(c.roleIds) ? c.roleIds : undefined,
           type: "coach",
           active: c.active !== false
         });
@@ -1446,6 +1678,9 @@ export class H4ADataManager {
       }
       if (Array.isArray(backup.dugnadActivities) && backup.dugnadActivities.length > 0) {
         this.dugnadActivities = backup.dugnadActivities;
+      }
+      if (Array.isArray(backup.roleDefinitions) && backup.roleDefinitions.length > 0) {
+        this.roleDefinitions = backup.roleDefinitions;
       }
       if (backup.teamSettings) {
         this.settings = { ...this.settings, ...backup.teamSettings };
@@ -1506,6 +1741,13 @@ export class H4ADataManager {
       if (Array.isArray(backup.dugnadActivities) && backup.dugnadActivities.length > 0) {
         for (const a of backup.dugnadActivities) {
           await setDoc(doc(database, "dugnad_activities", a.id), a, { merge: true });
+        }
+      }
+
+      // Write role definitions if present
+      if (Array.isArray(backup.roleDefinitions) && backup.roleDefinitions.length > 0) {
+        for (const rd of backup.roleDefinitions) {
+          await setDoc(doc(database, "role_definitions", rd.id), rd, { merge: true });
         }
       }
 
